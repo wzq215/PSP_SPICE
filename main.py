@@ -17,8 +17,8 @@ import imageio
 AU = 1.49e8  # km
 
 # UTC2ET
-start_time = '2021-01-15'
-stop_time = '2021-01-21'
+start_time = '2021-04-26'
+stop_time = '2021-05-01'
 start_dt = datetime.strptime(start_time, '%Y-%m-%d')
 stop_dt = datetime.strptime(stop_time, '%Y-%m-%d')
 utc = [start_dt.strftime('%b %d, %Y'), stop_dt.strftime('%b %d, %Y')]
@@ -54,7 +54,7 @@ size = 40
 filelist = os.listdir('psp/wispr/images/' + camera + '/')
 fnamelist = []
 for filename in filelist:
-    if re.match(r'^psp_L3_wispr_2021011', filename) != None:
+    if re.match(r'^psp_L3_wispr_2021042', filename) != None:
         fnamelist.append(filename)
 # filelist = re.findall(r'^psp_L3_wispr_20210115',filelist)
 fnamelist.sort(key=lambda x: datetime.strptime(x[13:28], '%Y%m%dT%H%M%S'))
@@ -89,10 +89,15 @@ for fname in fnamelist:
 
     fig, axs = plt.subplots(2, 1, sharex=False, sharey=False, figsize=(12, 15), gridspec_kw={'height_ratios': [4, 1]})
     axs[0].imshow(wispr_im)
-    if outer_lst.size > 0:
-        imlon = outer_lst[:, 2] * 480 / size + boresight[0]
-        imlat = outer_lst[:, 3] * 480 / size + boresight[1]
-        im = axs[0].scatter(imlon, imlat, c=outer_lst[:, 0], cmap='jet', vmin=times[0], vmax=times[-1], s=50,
+    # if outer_lst.size > 0:
+    #     imlon = outer_lst[:, 2] * 480 / size + boresight[0]
+    #     imlat = outer_lst[:, 3] * 480 / size + boresight[1]
+    #     im = axs[0].scatter(imlon, imlat, c=outer_lst[:, 0], cmap='jet', vmin=times[0], vmax=times[-1], s=50,
+    #                         marker='.', alpha=0.5)
+    if inner_lst.size > 0:
+        imlon = inner_lst[:, 2] * 480 / size + boresight[0]
+        imlat = inner_lst[:, 3] * 480 / size + boresight[1]
+        im = axs[0].scatter(imlon, imlat, c=inner_lst[:, 0], cmap='jet', vmin=times[0], vmax=times[-1], s=50,
                             marker='.', alpha=0.5)
 
     axs[0].set_xlabel('longitude(deg)', fontsize=20)
@@ -101,7 +106,7 @@ for fname in fnamelist:
     cbar.set_ticks(cbar.ax.get_yticks())
     cbar.set_ticklabels([spice.et2datetime(x).strftime('%Y-%m-%d %H:%m:%S') for x in cbar.ax.get_yticks()])
     axs[0].set_title('INNER FOV' + wispr_time_str, fontsize=20)
-    RTN = load_RTN_1min_data('20210115', '20210121')
+    RTN = load_RTN_1min_data('20210426', '20210501')
     BR = np.array(RTN['psp_fld_l2_mag_RTN_1min'][:, 0])
     RTN_ets = spice.datetime2et(RTN['epoch_mag_RTN_1min'])
     points = np.array([RTN_ets, BR]).T.reshape(-1, 1, 2)

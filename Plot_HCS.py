@@ -12,12 +12,13 @@ import plotly.graph_objects as go
 import pyvista
 from ps_read_hdf_3d import ps_read_hdf_3d
 from plot_body_positions import xyz2rtp_in_Carrington
+from Plot_Spacecraft import add_texture
 Rs = 696300  # km
 # ========Data Preparation=======
 
 # set time range for PSP orbit
-start_time = '2021-01-11'
-stop_time = '2021-01-25'
+start_time = '2021-04-26'
+stop_time = '2021-05-1'
 start_dt = datetime.strptime(start_time, '%Y-%m-%d')
 stop_dt = datetime.strptime(stop_time, '%Y-%m-%d')
 utc = [start_dt.strftime('%b %d, %Y'), stop_dt.strftime('%b %d, %Y')]
@@ -27,7 +28,7 @@ etTwo = spice.str2et(utc[1])
 step = 100
 times = [x * (etTwo - etOne) / step + etOne for x in range(step)]
 
-psp_utc_str = '20210117T131000'
+psp_utc_str = '20210426T070000'
 
 # convert psp_pos to carrington coordination system
 et = spice.datetime2et(datetime.strptime(psp_utc_str, '%Y%m%dT%H%M%S'))
@@ -43,7 +44,7 @@ print(subpnt_lat[0])
 print(subpnt_lat[1])
 
 # Load Psi Data
-data_br = ps_read_hdf_3d(2239, 'corona', 'br002', periodicDim=3)
+data_br = ps_read_hdf_3d(2243, 'corona', 'br002', periodicDim=3)
 # data_br = h5py.File('simulation/20210117T131000/corona_h5/br002.h5')
 r_br = np.array(data_br['scales1'])  # 201 in Rs, distance from sun
 t_br = np.array(data_br['scales2'])  # 150 in rad, latitude
@@ -51,14 +52,14 @@ p_br = np.array(data_br['scales3'])  # 256 in rad, Carrington longitude
 br = np.array(data_br['datas'])  # 1CU = 2.205G = 2.205e-4T = 2.205e5nT
 br = br * 2.205e5  # nT
 # print(t_br)
-data_rho = ps_read_hdf_3d(2239, 'corona', 'rho002', periodicDim=3)#h5py.File('simulation/20210117T131000/corona_h5/rho002.h5')
+data_rho = ps_read_hdf_3d(2243, 'corona', 'rho002', periodicDim=3)#h5py.File('simulation/20210117T131000/corona_h5/rho002.h5')
 r_rho = np.array(data_rho['scales1'])  # 201 in Rs, distance from sun
 t_rho = np.array(data_rho['scales2'])  # 150 in rad, latitude
 p_rho = np.array(data_rho['scales3'])  # 256 in rad, Carrington longitude
 rho = np.array(data_rho['datas'])
 rho = rho * 1e8  # cm^-3
 # print(t_rho)
-data_vr = ps_read_hdf_3d(2239, 'corona', 'vr002', periodicDim=3)
+data_vr = ps_read_hdf_3d(2243, 'corona', 'vr002', periodicDim=3)
 r_vr = np.array(data_vr['scales1'])  # 201 in Rs, distance from sun
 t_vr = np.array(data_vr['scales2'])  # 150 in rad, latitude
 p_vr = np.array(data_vr['scales3'])  # 256 in rad, Carrington longitude
@@ -93,7 +94,7 @@ rholog = rho*rv2**2
 print('min',np.nanmin(rholog))
 print('max',np.nanmax(rholog))
 mesh2.point_data['values'] = rholog.ravel(order='F')  # also the active scalars
-isos2 = mesh2.contour(isosurfaces=1,rng=[8e5,8e5])
+isos2 = mesh2.contour(isosurfaces=1,rng=[7e5,7e5])
 isos2.plot(opacity=0.9)
 
 
@@ -122,7 +123,7 @@ plot = go.Figure()
 plot.add_trace(go.Mesh3d(x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
                          opacity=1,colorscale='jet',
                          # colorscale='Viridis',
-                         cmax=450, cmin=200,
+                         cmax=400, cmin=200,
                          i=triangles[:, 1], j=triangles[:, 2], k=triangles[:, 3],
                          intensity=intensity,
                          # showscale=False,
@@ -154,18 +155,31 @@ psp_pos, _ = spice.spkpos('SPP', times, 'IAU_SUN', 'NONE', 'SUN')  # km
 psp_pos = psp_pos.T / Rs
 psp_pos = {'x': psp_pos[0], 'y': psp_pos[1], 'z': psp_pos[2]}
 psp_pos = pd.DataFrame(data=psp_pos)
+datetimes = spice.et2datetime(times)
+datetimes = [dt.strftime('%Y%m%d%H%M%S') for dt in datetimes]
+rs = np.sqrt(psp_pos['x']**2+psp_pos['y']**2+psp_pos['z']**2)
 
-obs_cross = spice.datetime2et(datetime.strptime('20210117T133000', '%Y%m%dT%H%M%S'))
-simu_cross = spice.datetime2et(datetime.strptime('20210117T200000','%Y%m%dT%H%M%S'))
+
+obs_cross = spice.datetime2et(datetime.strptime('20210426T070000', '%Y%m%dT%H%M%S'))
+simu_cross = spice.datetime2et(datetime.strptime('20210428T220000','%Y%m%dT%H%M%S'))
 
 plot.add_trace(go.Scatter3d(x=psp_pos['x'], y=psp_pos['y'], z=psp_pos['z'],
                             mode='lines',
                             line=dict(color='yellow',
                                       width=10),
                             name='Orbit of PSP (' + start_time + '~' + stop_time + ')',
+
+                            # customdata=np.dstack((datetimes,rs)),
+                            # hovertemplate='z1:<br><b>z2:%{z:.3f}</b><br>z3: %{customdata[1]:.3f} ',
+                            # hovertemplate=
+                            # "<b>%{customdata[0]}</b><br><br>" +
+                            # "Position: [%{x},%{y},%{z}]<br>" +
+                            # "Radius: %{customdata[1]:.3f}<br>" +
+                            # "<extra></extra>",
                             ))
 psp_obs_cross, _ = spice.spkpos('SPP', obs_cross, 'IAU_SUN', 'NONE', 'SUN')  # km
 psp_obs_cross = np.array(psp_obs_cross.T / Rs)
+print(psp_obs_cross)
 # psp_obs_cross = {'x': psp_obs_cross[0], 'y': psp_obs_cross[1], 'z': psp_obs_cross[2]}
 # psp_obs_cross = pd.DataFrame(data=psp_obs_cross)
 plot.add_trace(go.Scatter3d(x=np.array(psp_obs_cross[0]), y=np.array(psp_obs_cross[1]), z=np.array(psp_obs_cross[2]),
@@ -177,6 +191,7 @@ plot.add_trace(go.Scatter3d(x=np.array(psp_obs_cross[0]), y=np.array(psp_obs_cro
 
 psp_simu_cross, _ = spice.spkpos('SPP', simu_cross, 'IAU_SUN', 'NONE', 'SUN')  # km
 psp_simu_cross = np.array(psp_simu_cross.T / Rs)
+print(psp_simu_cross)
 # psp_simu_cross = {'x': psp_simu_cross[0], 'y': psp_simu_cross[1], 'z': psp_simu_cross[2]}
 # psp_simu_cross = pd.DataFrame(data=psp_simu_cross)
 plot.add_trace(go.Scatter3d(x=np.array(psp_simu_cross[0]), y=np.array(psp_simu_cross[1]), z=np.array(psp_simu_cross[2]),
@@ -204,4 +219,4 @@ plot.update_layout(
         xanchor="right",
         x=1, ),
 )
-py.plot(plot, filename='test.html', image='svg')
+py.plot(plot, filename='HCS('+start_time+'_'+stop_time+').html')

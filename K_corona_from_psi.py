@@ -14,14 +14,14 @@ import furnsh_kernels
 
 from plot_body_positions import xyz2rtp_in_Carrington
 # Read PSI Data
-data_rho_corona = ps_read_hdf_3d(2239, 'corona', 'rho002', periodicDim=3)
+data_rho_corona = ps_read_hdf_3d(2243, 'corona', 'rho002', periodicDim=3)
 r_rho_corona = np.array(data_rho_corona['scales1'])  # in Rs, distance from sun
 t_rho_corona = np.array(data_rho_corona['scales2'])  # in rad, latitude
 p_rho_corona = np.array(data_rho_corona['scales3'])  # in rad, Carrington longitude
 rho_corona = np.array(data_rho_corona['datas'])  # 1CU = 10^8 cm^-3
 rho_corona = rho_corona * 1e8 * 1e6  # m^-3
 
-data_rho_helio = ps_read_hdf_3d(2239, 'helio', 'rho002', periodicDim=3)
+data_rho_helio = ps_read_hdf_3d(2243, 'helio', 'rho002', periodicDim=3)
 r_rho_helio = np.array(data_rho_helio['scales1'])  # in Rs, distance from sun
 t_rho_helio = np.array(data_rho_helio['scales2'])  # in rad, latitude
 p_rho_helio = np.array(data_rho_helio['scales3'])  # in rad, Carrington longitude
@@ -271,7 +271,7 @@ def get_WL_images(time_str, vignetting='quad', type='full',resolution=0.5):
 
 
 if __name__ == '__main__':
-    filename = get_WL_images('20210117T150000',type='full',resolution=0.5,vignetting='Gauss')
+    filename = get_WL_images('20210426T070000',type='background',resolution=0.5,vignetting='None')
 
     # path = 'data/K_corona_from_psi'
     # vignetting = 'quad'

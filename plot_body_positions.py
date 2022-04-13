@@ -113,10 +113,10 @@ def get_body_pos(body, start_time, stop_time, observer='SUN BARYCENTER', frame='
 
 
 def plot_psp_sun_carrington(start_time_str, stop_time_str):
-    print(datetime.strptime(start_time_str, '%Y%m%d'))
-    print(datetime.strptime(stop_time_str, '%Y%m%d'))
-    start_et = spice.datetime2et(datetime.strptime(start_time_str, '%Y%m%d'))
-    stop_et = spice.datetime2et(datetime.strptime(stop_time_str, '%Y%m%d'))
+    print(datetime.strptime(start_time_str, '%Y%m%dT%H%M%S'))
+    print(datetime.strptime(stop_time_str, '%Y%m%dT%H%M%S'))
+    start_et = spice.datetime2et(datetime.strptime(start_time_str, '%Y%m%dT%H%M%S'))
+    stop_et = spice.datetime2et(datetime.strptime(stop_time_str, '%Y%m%dT%H%M%S'))
 
     step = 100
     times = [x * (stop_et - start_et) / step + start_et for x in range(step)]
@@ -153,7 +153,7 @@ def plot_psp_sun_carrington(start_time_str, stop_time_str):
     plt.show()
 
     plt.figure()
-    plt.plot(np.rad2deg(psp_pos_carr_rtp[1]))
+    plt.plot(spice.et2datetime(times),np.rad2deg(psp_pos_carr_rtp[1]))
     plt.show()
 
 if __name__ == '__main__':

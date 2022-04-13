@@ -13,12 +13,16 @@ import furnsh_kernels
 import pandas as pd
 import sunpy.map
 from matplotlib import pyplot as plt
+from datetime import timedelta
 
 from plot_body_positions import xyz2rtp_in_Carrington
+from plot_body_positions import plot_psp_sun_carrington
 
 AU = 1.49e8  # km
 Rs = 6.96e5  # solar radii km
 
+ps = np.arange(0, 360, 0.2)
+ts = np.arange(-90, 90, 0.2)
 
 def datetimestr2et(datetime, type='%Y-%m-%d'):
     dt = datetime.strptime(datetime, type)
@@ -313,7 +317,6 @@ def find_WISPR_for_PSP(insitu_time, wispr_time_range):
     return inner_lst, outer_lst
 
 
-
 def WISPR_to_Carrington(R, lon_angle, lat_angle, wispr_time):
     xyz_wisprinner = [R * np.cos(np.deg2rad(lat_angle)) * np.sin(np.deg2rad(lon_angle)),
                       - R * np.sin(np.deg2rad(lat_angle)),
@@ -332,7 +335,7 @@ def WISPR_to_Carrington(R, lon_angle, lat_angle, wispr_time):
     return [r_carrington, p_carrington, t_carrington]
 
 
-def Plot_Carrington_map_PSP(wispr_time_str, d,data_path):
+def Plot_Carrington_map_PSP(wispr_time_str, d, data_path):
     wispr_time = spice.datetime2et(datetime.strptime(wispr_time_str, '%Y%m%dT%H%M%S'))
     wispr_date = wispr_time_str[0:8]
 
@@ -347,8 +350,8 @@ def Plot_Carrington_map_PSP(wispr_time_str, d,data_path):
 
     lats_spp = np.deg2rad(np.linspace(-20, 20, 960))
     boresight = (960 / 2, 1024 / 2)
-    ps = np.arange(0, 360, 0.5)
-    ts = np.arange(-90, 90, 0.5)
+    # ps = np.arange(0, 360, 0.5)
+    # ts = np.arange(-90, 90, 0.5)
     carrmap = np.zeros((len(ps), len(ts))) * np.nan
 
     path = data_path + wispr_date + '/'
@@ -370,14 +373,14 @@ def Plot_Carrington_map_PSP(wispr_time_str, d,data_path):
         if l / R < np.cos(lat_spp):
             lon_spp = np.arccos(l / (R * np.cos(lat_spp)))
 
-            TM_arr = spice.sxform('SPP_SPACECRAFT','SPP_WISPR_INNER',wispr_time)
+            TM_arr = spice.sxform('SPP_SPACECRAFT', 'SPP_WISPR_INNER', wispr_time)
             ray_spp = [np.cos(lat_spp) * np.sin(lon_spp),
                        -np.sin(lat_spp),
                        np.cos(lat_spp) * np.cos(lon_spp),
                        ]
-            ray_wispr = np.dot(TM_arr[0:3,0:3],ray_spp)
+            ray_wispr = np.dot(TM_arr[0:3, 0:3], ray_spp)
 
-            lon_inner = np.rad2deg(np.arctan(ray_wispr[0]/ray_wispr[2]))
+            lon_inner = np.rad2deg(np.arctan(ray_wispr[0] / ray_wispr[2]))
             lat_inner = np.rad2deg(-np.arcsin(ray_wispr[1]))
 
             r, p, t = WISPR_to_Carrington(l * Rs, lon_inner, lat_inner, wispr_time)
@@ -405,7 +408,7 @@ def Plot_Carrington_map_PSP(wispr_time_str, d,data_path):
                 t_indexs.append(t_index)
                 msb.append(tmp_msb)
     bin_msb = (p_indexs, t_indexs)
-    value_msb = np.array(msb)#/(R**2)
+    value_msb = np.array(msb) * np.arccos(l / R)  # /(R**2)
 
     # plt.imshow(data.T)
     # plt.gca().invert_yaxis()
@@ -416,6 +419,87 @@ def Plot_Carrington_map_PSP(wispr_time_str, d,data_path):
     # plt.show()
     # exit()
     return bin_msb, value_msb
+
+
+def Plot_Jmap_PSP(wispr_time_str, pre_wispr_time_str, data_path):
+    wispr_time = spice.datetime2et(datetime.strptime(wispr_time_str, '%Y%m%dT%H%M%S'))
+    wispr_date = wispr_time_str[0:8]
+    pre_time = spice.datetime2et(datetime.strptime(pre_wispr_time_str, '%Y%m%dT%H%M%S'))
+    pre_date = pre_wispr_time_str[0:8]
+
+    # Load Fits and get Running Difference Data
+    path = data_path + wispr_date + '/'
+
+    filelist = os.listdir(path)
+    fnamelist = []
+    for filename in filelist:
+        if re.match(r'^psp_L3_wispr_' + wispr_time_str + '_V1_12', filename) != None:
+            fnamelist.append(filename)
+    data, header = sunpy.io.fits.read(path + fnamelist[0])[0]
+    data = data.T
+
+    pre_path = data_path + pre_date + '/'
+    pre_filelist = os.listdir(pre_path)
+
+    pre_fnamelist = []
+    for pre_filename in pre_filelist:
+        if re.match(r'^psp_L3_wispr_' + pre_wispr_time_str + '_V1_12', pre_filename) != None:
+            pre_fnamelist.append(pre_filename)
+    pre_data, pre_header = sunpy.io.fits.read(pre_path + pre_fnamelist[0])[0]
+    pre_data = pre_data.T
+
+    rd_data = data - pre_data
+
+    print('time:', wispr_time_str)
+    # print('distance from the Sun:', d)
+
+    boresight = (960 / 2, 1024 / 2)
+
+    wispr_state, _ = spice.spkezr('SPP', wispr_time, 'SPP_HCI', 'NONE', 'SUN')
+    sun_pos, _ = spice.spkpos('SUN', wispr_time, 'SPP_HCI', 'NONE', 'SUN')
+    wispr_pos = wispr_state[0:3]
+    wispr_velocity = wispr_state[3:6]
+
+    R = np.linalg.norm(wispr_pos, 2) / Rs  # Rs
+
+    sun_ray_spp = sun_pos - wispr_pos
+    velocity_ray_spp = wispr_velocity
+
+    TM_arr = spice.sxform('SPP_HCI', 'SPP_WISPR_INNER', wispr_time)
+    sun_ray_wispr = np.dot(TM_arr[0:3, 0:3], sun_ray_spp)
+    sun_ray_wispr = sun_ray_wispr / np.linalg.norm(sun_ray_wispr, 2)
+    velocity_ray_wispr = np.dot(TM_arr[0:3, 0:3], velocity_ray_spp)
+    velocity_ray_wispr = velocity_ray_wispr / np.linalg.norm(velocity_ray_wispr, 2)
+    print('sun ray', sun_ray_wispr)
+    sun_lon_inner = np.rad2deg(np.arctan(sun_ray_wispr[0] / sun_ray_wispr[2]))
+    sun_lat_inner = np.rad2deg(-np.arcsin(sun_ray_wispr[1]))
+    print('sun lon lat', sun_lon_inner, sun_lat_inner)
+
+    sun_x_inner = int(sun_lon_inner * 960 / 40 + boresight[0])
+    sun_y_inner = int(sun_lat_inner * 960 / 40 + boresight[1])
+    print('sun xy', sun_x_inner, sun_y_inner)
+
+    velocity_lon_inner = np.rad2deg(np.arctan(velocity_ray_wispr[0] / velocity_ray_wispr[2]))
+    velocity_lat_inner = np.rad2deg(-np.arcsin(velocity_ray_wispr[1]))
+    print('velocity lon lat', velocity_lon_inner, velocity_lat_inner)
+
+    velocity_x_inner = int(velocity_lon_inner * 960 / 40 + boresight[0])
+    velocity_y_inner = int(velocity_lat_inner * 960 / 40 + boresight[1])
+    print('velocity xy', velocity_x_inner, velocity_y_inner)
+
+    k = (velocity_y_inner - sun_y_inner) / (velocity_x_inner - sun_x_inner)
+
+    x_indexs = np.linspace(0, 959, 960)
+    # print(x_indexs)
+    y_indexs = k * (x_indexs - sun_x_inner) + sun_y_inner
+    x_indexs = x_indexs[y_indexs < 1024]
+    y_indexs = y_indexs[y_indexs < 1024]
+
+    value_msb = [rd_data[int(x_indexs[i]), int(y_indexs[i])] for i in range(len(x_indexs))]
+    elon_msb = (x_indexs - sun_x_inner) * np.sqrt(1 + k ** 2) * 40 / 960
+
+    return elon_msb, value_msb
+
 
 def Plot_HEEQ_map_PSP(wispr_time_str, d):
     wispr_time = spice.datetime2et(datetime.strptime(wispr_time_str, '%Y%m%dT%H%M%S'))
@@ -432,8 +516,8 @@ def Plot_HEEQ_map_PSP(wispr_time_str, d):
 
     lats_spp = np.deg2rad(np.arange(-30, 30, 0.05))
     boresight = (960 / 2, 1024 / 2)
-    ps = np.arange(0, 360, 0.5)
-    ts = np.arange(-90, 90, 0.5)
+    # ps = np.arange(0, 360, 0.5)
+    # ts = np.arange(-90, 90, 0.5)
     carrmap = np.zeros((len(ps), len(ts))) * np.nan
 
     path = 'data/WISPR_ENC07_L3_FITS/' + wispr_date + '/'
@@ -456,14 +540,14 @@ def Plot_HEEQ_map_PSP(wispr_time_str, d):
             lon_spp = np.arccos(l / (R * np.cos(lat_spp)))
             # lon_spp = np.arccos(l/R)
 
-            TM_arr = spice.sxform('SPP_SPACECRAFT','SPP_WISPR_INNER',wispr_time)
+            TM_arr = spice.sxform('SPP_SPACECRAFT', 'SPP_WISPR_INNER', wispr_time)
             ray_spp = [np.cos(lat_spp) * np.sin(lon_spp),
                        -np.sin(lat_spp),
                        np.cos(lat_spp) * np.cos(lon_spp),
                        ]
-            ray_wispr = np.dot(TM_arr[0:3,0:3],ray_spp)
+            ray_wispr = np.dot(TM_arr[0:3, 0:3], ray_spp)
 
-            lon_inner = np.rad2deg(np.arctan(ray_wispr[0]/ray_wispr[2]))
+            lon_inner = np.rad2deg(np.arctan(ray_wispr[0] / ray_wispr[2]))
             lat_inner = np.rad2deg(-np.arcsin(ray_wispr[1]))
 
             r, p, t = WISPR_to_Carrington(l * Rs, lon_inner, lat_inner, wispr_time)
@@ -476,9 +560,9 @@ def Plot_HEEQ_map_PSP(wispr_time_str, d):
             if x_inner < 960 and y_inner < 960 and y_inner > 0 and x_inner > 0:
                 print('lonlat in spp', np.rad2deg(lon_spp), np.rad2deg(lat_spp))
                 print('lonlat in inner', lon_inner, lat_inner)
-                print('xy in inner', x_inner,y_inner)
-                print('pos',x_inner,y_inner)
-                print('lonlat in Carrington',np.rad2deg(p),np.rad2deg(t))
+                print('xy in inner', x_inner, y_inner)
+                print('pos', x_inner, y_inner)
+                print('lonlat in Carrington', np.rad2deg(p), np.rad2deg(t))
                 print('------')
 
                 tmp_msb = data[x_inner, y_inner]
@@ -491,7 +575,7 @@ def Plot_HEEQ_map_PSP(wispr_time_str, d):
                 t_indexs.append(t_index)
                 msb.append(tmp_msb)
     bin_msb = (p_indexs, t_indexs)
-    value_msb = msb#/l**2
+    value_msb = msb * np.arccos(l / R)  # /l**2
 
     # plt.imshow(data.T)
     # plt.gca().invert_yaxis()
@@ -504,182 +588,122 @@ def Plot_HEEQ_map_PSP(wispr_time_str, d):
     return bin_msb, value_msb
 
 
-
+def load_wispr_inner_fits(path, datestr_list):
+    '''filelist = os.listdir('data/orbit08/20210415')
+    for filename in filelist:
+        if re.match(r'^psp_L3_wispr_20210415T......_V1_12', filename) != None:
+            fnamelist.append(filename)
+    filelist = os.listdir('data/orbit08/20210416')
+    for filename in filelist:
+        if re.match(r'^psp_L3_wispr_20210416T......_V1_12', filename) != None:
+            fnamelist.append(filename)'''
+    fnamelist = []
+    for datestr in datestr_list:
+        filelist = os.listdir(path + datestr)
+        for filename in filelist:
+            if re.match(r'^psp_L3_wispr_' + datestr + 'T......_V1_12', filename) != None:
+                fnamelist.append(filename)
+    return fnamelist
 
 
 if __name__ == "__main__":
     # plot_frames(et)
     # 'data/WISPR_ENC07_L3_FITS/'+wispr_date+'/psp_L3_wispr_'+wispr_time_str+'_V1_1211.fits'
 
-    # plot_psp_sun_carrington('20210726','20210827')
+    # Overview of PSP Orbit
+    plot_psp_sun_carrington('20210426T070000', '20210429T120000')
 
-
-
+    # Define files need reading
     fnamelist = []
+    path = 'data/orbit08/'
+    datetime_beg = datetime(2021, 4, 27)
+    datetime_end = datetime(2021, 5, 1)
 
-    path = 'data/WISPR_ENC07_L3_FITS/'
-    # filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210105/')
-    # for filename in filelist:
-    #     if re.match(r'^psp_L3_wispr_20210105T......_V1_12', filename) != None:
-    #         fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210111/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210111T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210112/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210112T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210113/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210113T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210114/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210114T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210115/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210115T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210116/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210116T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210117/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210117T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210118/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210118T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210119/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210119T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210120/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210120T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210121/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210121T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210122/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210122T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210123/')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210123T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    # filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210124/')
-    # for filename in filelist:
-    #     if re.match(r'^psp_L3_wispr_20210124T......_V1_12', filename) != None:
-    #         fnamelist.append(filename)
-    # filelist = os.listdir('data/WISPR_ENC07_L3_FITS/20210125/')
-    # for filename in filelist:
-    #     if re.match(r'^psp_L3_wispr_20210125T......_V1_12', filename) != None:
-    #         fnamelist.append(filename)
-
-
-    '''path = 'data/orbit09/'
-    filelist = os.listdir('data/orbit09/20210804')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210804T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/orbit09/20210805')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210805T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/orbit09/20210806')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210806T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/orbit09/20210807')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210807T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/orbit09/20210808')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210808T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/orbit09/20210809')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210809T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/orbit09/20210810')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210810T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/orbit09/20210811')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210811T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/orbit09/20210812')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210812T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/orbit09/20210813')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210813T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/orbit09/20210814')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210814T......_V1_12', filename) != None:
-            fnamelist.append(filename)
-    filelist = os.listdir('data/orbit09/20210815')
-    for filename in filelist:
-        if re.match(r'^psp_L3_wispr_20210815T......_V1_12', filename) != None:
-            fnamelist.append(filename)'''
-
-
+    datetime_length = int((datetime_end - datetime_beg) / timedelta(days=1))
+    datetime_list = [datetime_beg + timedelta(days=i) for i in range(datetime_length)]
+    datestr_list = [dt.strftime('%Y%m%d') for dt in datetime_list]
+    fnamelist = load_wispr_inner_fits(path, datestr_list)
     fnamelist.sort(key=lambda x: datetime.strptime(x[13:28], '%Y%m%dT%H%M%S'))
-    frames = []
-    ps = np.arange(0, 360, 0.5)
-    ts = np.arange(-90, 90, 0.5)
-    pp, tt = np.meshgrid(ps, ts)
 
-    carrmap = np.zeros((len(ps), len(ts))) * np.nan
+    # Set Resolutions
+    # ps = np.arange(0, 360, 0.5)
+    # ts = np.arange(-90, 90, 0.5)
+    elons = np.linspace(13, 55, 960)
 
-    d = 15
+    plot_Jmap = False
+    plot_Carrmap = True
+    # plot_Timemap = True
+    # Plot Jmaps
+    if plot_Jmap:
+        wispr_times = []
+        jmap = np.zeros((len(fnamelist), len(elons))) * np.nan
+        for i, fname in enumerate(fnamelist):
+            print(i)
+            print(fnamelist[i])
+            print(fnamelist[i - 1])
+            wispr_time_str = fname[13:28]
 
-    wispr_times=[]
-    timemap = np.zeros((len(fnamelist),len(ts)))*np.nan
-    for i,fname in enumerate(fnamelist):
-        wispr_time_str = fname[13:28]
-        wispr_times.append(datetime.strptime(wispr_time_str,'%Y%m%dT%H%M%S'))
-        bin_msb, msb = Plot_Carrington_map_PSP(wispr_time_str, d,path)
-        # print(bin_msb)
-        carrmap[bin_msb] = msb
-        print(bin_msb[1])
-        timemap[i,bin_msb[1]] = msb
-    print(carrmap.shape)
-    print(pp.shape)
-    # plt.ion()
-    plt.figure()
-    plt.pcolormesh(pp, tt, np.log10(carrmap.T))
-    plt.colorbar()
-    plt.ylim([-40,30])
-    plt.xlim([40, 160])
-    plt.gca().set_aspect(1)
-    # plt.clim([1e-18, 1e-16])
-    # plt.clim([1e-15, 1e-13])
-    plt.xlabel('Carrington Longitude (deg)')
-    plt.ylabel('Carrington Latitude (deg)')
-    plt.title('Carrington Map (R='+str(d)+'Rs'+'_210111-210123)')
-    # plt.text('Generated by wispr_insitu_TS.py')
+            if i == 0:
+                print('i==0')
+                pre_wispr_time_str = wispr_time_str
+            else:
+                pre_wispr_time_str = fnamelist[i - 1][13:28]
+            wispr_times.append(datetime.strptime(wispr_time_str, '%Y%m%dT%H%M%S'))
+            print('now', wispr_time_str)
+            print('previous', pre_wispr_time_str)
+            elon_msb, msb = Plot_Jmap_PSP(wispr_time_str, pre_wispr_time_str, path)
+            # print(elon_msb)
+            msb_interp = np.interp(elons, elon_msb, msb)
+            jmap[i, :] = msb_interp
 
-    plt.show()
-    plt.figure()
-    time_xx, time_tt = np.meshgrid(wispr_times,ts)
-    plt.pcolormesh(time_xx,time_tt,np.log10(timemap).T)
-    plt.colorbar()
-    plt.clim([-13.5,-11.5])
-    plt.ylabel('Carrington Latitude (deg)')
-    plt.xlabel('Observation Time')
-    plt.title('HEEQ Map (R='+str(d)+'Rs'+'_210111-210123)')
-    plt.show()
+        plt.figure()
+        TIME, ELON = np.meshgrid(wispr_times, elons)
+        plt.pcolormesh(wispr_times, elons, jmap.T, cmap='gray')
+        plt.clim([-2e-13, 2e-13])
+        plt.colorbar()
+        plt.show()
 
+    if plot_Carrmap:
+        wispr_times = []
+        timemap = np.zeros((len(fnamelist), len(ts))) * np.nan
+        carrmap = np.zeros((len(ps), len(ts))) * np.nan
+        d = 10
+        for i, fname in enumerate(fnamelist):
+            wispr_time_str = fname[13:28]
+            wispr_times.append(datetime.strptime(wispr_time_str, '%Y%m%dT%H%M%S'))
+            bin_msb, msb = Plot_Carrington_map_PSP(wispr_time_str, d, path)
+            # print(bin_msb)
+            carrmap[bin_msb] = msb
+            # print(bin_msb[1])
+            timemap[i, bin_msb[1]] = msb
 
+        pp, tt = np.meshgrid(ps, ts)
+        print(carrmap.shape)
+        print(pp.shape)
+        # plt.ion()
+        plt.figure()
+        plt.pcolormesh(pp, tt, carrmap.T)
+        plt.colorbar()
+        plt.ylim([-60, 60])
+        plt.xlim([100, 250])
+        plt.gca().set_aspect(1)
+        # plt.clim([1e-18, 1e-16])
+        # plt.clim([1e-15, 1e-13])
+        plt.clim([1e-14,1e-13])
+        plt.xlabel('Carrington Longitude (deg)')
+        plt.ylabel('Carrington Latitude (deg)')
+        plt.title('Carrington Map (R=' + str(d) + 'Rs' + '_210111-210123)')
+        # plt.text('Generated by wispr_insitu_TS.py')
+
+        plt.show()
+
+        plt.figure()
+        time_xx, tt = np.meshgrid(wispr_times, ts)
+        print(time_xx.shape,tt.shape,timemap.shape)
+        plt.pcolormesh(time_xx, tt, timemap.T)
+        plt.colorbar()
+        plt.clim([1e-14, 1e-12])
+        plt.ylabel('Carrington Latitude (deg)')
+        plt.xlabel('Observation Time')
+        plt.title('HEEQ Map (R=' + str(d) + 'Rs' + ')')
+        plt.show()

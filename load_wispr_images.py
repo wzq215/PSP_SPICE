@@ -8,13 +8,13 @@ import datetime as dt
 根据所需日期修改对应的orbit，date，camera字符串
 '''
 #setting
-orbit = 'orbit07'
+orbit = 'orbit08'
 # date = '20210111'
 camera = 'inner'
-beg_time_str = '20210116230028'
-delta_time_minute = 30
+beg_time_str = '20210426102421'
+delta_time_minute = 15
 delta_time_sec = 0
-end_time_str = '20210118233028'
+end_time_str = '20210426235721'
 # download
 time_beg = dt.datetime.strptime(beg_time_str,'%Y%m%d%H%M%S')
 time_end = dt.datetime.strptime(end_time_str,'%Y%m%d%H%M%S')
