@@ -611,19 +611,24 @@ if __name__ == "__main__":
     # 'data/WISPR_ENC07_L3_FITS/'+wispr_date+'/psp_L3_wispr_'+wispr_time_str+'_V1_1211.fits'
 
     # Overview of PSP Orbit
-    plot_psp_sun_carrington('20210426T070000', '20210429T120000')
+    plot_psp_sun_carrington('20210426T000000', '20210429T000000')
 
     # Define files need reading
     fnamelist = []
     path = 'data/orbit08/'
-    datetime_beg = datetime(2021, 4, 27)
-    datetime_end = datetime(2021, 5, 1)
+    datetime_beg = datetime(2021, 4, 26)
+    datetime_end = datetime(2021, 4, 27)
 
     datetime_length = int((datetime_end - datetime_beg) / timedelta(days=1))
     datetime_list = [datetime_beg + timedelta(days=i) for i in range(datetime_length)]
     datestr_list = [dt.strftime('%Y%m%d') for dt in datetime_list]
     fnamelist = load_wispr_inner_fits(path, datestr_list)
     fnamelist.sort(key=lambda x: datetime.strptime(x[13:28], '%Y%m%dT%H%M%S'))
+    subepoch_beg = datetime(2021,4,26,3,30,0)
+    subepoch_end = datetime(2021,4,27,0,0,0)
+    # fnamelist = fnamelist[x for x in fnamelist if ((datetime.strptime(x[13:28],'%Y%m%dT%H%M%S')>subepoch_beg) & (datetime.strptime(x[13:28],'%Y%m%dT%H%M%S')<subepoch_end))]
+    fnamelist = list(filter(lambda x: (datetime.strptime(x[13:28],'%Y%m%dT%H%M%S')>subepoch_beg) & (datetime.strptime(x[13:28],'%Y%m%dT%H%M%S')<subepoch_end),
+                            fnamelist))
 
     # Set Resolutions
     # ps = np.arange(0, 360, 0.5)
@@ -667,7 +672,7 @@ if __name__ == "__main__":
         wispr_times = []
         timemap = np.zeros((len(fnamelist), len(ts))) * np.nan
         carrmap = np.zeros((len(ps), len(ts))) * np.nan
-        d = 10
+        d = 10.5
         for i, fname in enumerate(fnamelist):
             wispr_time_str = fname[13:28]
             wispr_times.append(datetime.strptime(wispr_time_str, '%Y%m%dT%H%M%S'))
@@ -707,3 +712,6 @@ if __name__ == "__main__":
         plt.xlabel('Observation Time')
         plt.title('HEEQ Map (R=' + str(d) + 'Rs' + ')')
         plt.show()
+
+    np.savez('Timemap_d=10.5_0426.npz',time_xx,tt,timemap)
+

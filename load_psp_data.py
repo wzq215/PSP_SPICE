@@ -22,7 +22,7 @@ def load_RTN_1min_data(start_time_str, stop_time_str):
     start_time = datetime.strptime(start_time_str, '%Y%m%d').toordinal()
     stop_time = datetime.strptime(stop_time_str, '%Y%m%d').toordinal()
     filelist = [psp_data_path+'psp_fld_l2_mag_RTN_1min_' + datetime.fromordinal(x).strftime('%Y%m%d') + '_v02.cdf'
-                for x in range(start_time, stop_time)]
+                for x in range(start_time, stop_time+1)]
     # print(filelist)
     data = pycdf.concatCDF([pycdf.CDF(f) for f in filelist])
     print(data)
@@ -89,7 +89,7 @@ def load_spi_data(start_time_str, stop_time_str):
     start_time = datetime.strptime(start_time_str, '%Y%m%d').toordinal()
     stop_time = datetime.strptime(stop_time_str, '%Y%m%d').toordinal()
     filelist = [psp_data_path+'psp_swp_spi_sf00_L3_mom_' + datetime.fromordinal(x).strftime('%Y%m%d') + '_v04.cdf'
-                for x in range(start_time, stop_time)]
+                for x in range(start_time, stop_time+1)]
     # print(filelist)
     data = pycdf.concatCDF([pycdf.CDF(f) for f in filelist])
     print(data)
@@ -97,10 +97,10 @@ def load_spi_data(start_time_str, stop_time_str):
 
 
 if __name__ == '__main__':
-    plot_1min = False
+    plot_1min = True
 
-    beg_time = datetime(2021,4,29,3)
-    end_time = datetime(2021,4,29,6)
+    beg_time = datetime(2021,4,28,0)
+    end_time = datetime(2021,4,30,0)
     beg_time_str = beg_time.strftime('%Y%m%dT%H%M%S')
     end_time_str = end_time.strftime('%Y%m%dT%H%M%S')
 
@@ -127,14 +127,36 @@ if __name__ == '__main__':
         Br = mag_RTN['psp_fld_l2_mag_RTN'][timebinmag, 0]
         Bt = mag_RTN['psp_fld_l2_mag_RTN'][timebinmag, 1]
         Bn = mag_RTN['psp_fld_l2_mag_RTN'][timebinmag, 2]
+        Babs = np.sqrt(Br**2+Bt**2+Bn**2)
+
+
+
+
 
         filename = 'figures/overviews/Overview('+beg_time_str+'-'+end_time_str+').html'
+
+    nn = Bt.shape[0]
+    sp=np.fft.fft(abs(Bt),n=nn)
+
+    print(sp[1:nn//2])
+    freq = np.fft.fftfreq(nn)
+    print(freq[1:nn//2])
+    timestep = 60
+    print(timestep)
+    # freq =
+    plt.plot(freq[1:nn//2]/(1/60),abs(sp[1:nn//2])*2)
+    plt.title('PSD')
+    plt.xlabel('f [1/hr]')
+    print(abs(sp))
+    plt.show()
+
+    exit()
 
     pmom_SPI = load_spi_data(beg_time.strftime('%Y%m%d'), end_time.strftime('%Y%m%d'))
     epochpmom = pmom_SPI['Epoch']
     timebinpmom = (epochpmom > beg_time) & (epochpmom < end_time)
     epochpmom = epochpmom[timebinpmom]
-    np = pmom_SPI['DENS'][timebinpmom]
+    densp = pmom_SPI['DENS'][timebinpmom]
     vp_r = pmom_SPI['VEL_RTN_SUN'][timebinpmom,0]
     vp_t = pmom_SPI['VEL_RTN_SUN'][timebinpmom,1]
     vp_n = pmom_SPI['VEL_RTN_SUN'][timebinpmom,2]
@@ -146,20 +168,24 @@ if __name__ == '__main__':
                         specs=[[{"secondary_y": True}], [{"secondary_y": True}],
                                [{"secondary_y": True}], [{"secondary_y": True}]],
                         subplot_titles=("B_R & V_R", "B_T & V_T", "B_N & V_N"), shared_xaxes=True)
-    fig.add_trace(go.Scatter(x=epochmag, y=Br, name='Br', mode='lines'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=epochmag, y=Bt, name='Bt', mode='lines'), row=2, col=1)
-    fig.add_trace(go.Scatter(x=epochmag, y=Bn, name='Bn', mode='lines'), row=3, col=1)
-    fig.add_trace(go.Scatter(x=epochpmom, y=np, name='np',mode='lines'),row=4,col=1)
+    fig.add_trace(go.Scatter(x=epochmag, y=Br, name='Br', mode='lines',line_color='blue'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=epochmag, y=np.sqrt(Br ** 2 + Bt ** 2 + Bn ** 2), name='|B|', mode='lines', line_color='black'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=epochmag, y=Bt, name='Bt', mode='lines',line_color='blue'), row=2, col=1)
+    fig.add_trace(go.Scatter(x=epochmag, y=Bn, name='Bn', mode='lines',line_color='blue'), row=3, col=1)
+    fig.add_trace(go.Scatter(x=epochpmom, y=densp, name='np', mode='lines', line_color='blue'), row=4, col=1)
 
-    fig.add_trace(go.Scatter(x=epochpmom, y=vp_r, name='Vr', mode='lines'), row=1, col=1,secondary_y=True)
-    fig.add_trace(go.Scatter(x=epochpmom, y=vp_t, name='Vt', mode='lines'), row=2, col=1,secondary_y=True)
-    fig.add_trace(go.Scatter(x=epochpmom, y=vp_n, name='Vn', mode='lines'), row=3, col=1,secondary_y=True)
-    fig.add_trace(go.Scatter(x=epochpmom, y=Tp, name='np',mode='lines'),row=4,col=1,secondary_y=True)
+    fig.add_trace(go.Scatter(x=epochpmom, y=vp_r, name='Vr', mode='lines', line_color='red'), row=1, col=1,secondary_y=True)
+    fig.add_trace(go.Scatter(x=epochpmom, y=vp_t, name='Vt', mode='lines', line_color='red'), row=2, col=1,secondary_y=True)
+    fig.add_trace(go.Scatter(x=epochpmom, y=vp_n, name='Vn', mode='lines', line_color='red'), row=3, col=1,secondary_y=True)
+    fig.add_trace(go.Scatter(x=epochpmom, y=Tp, name='Tp',mode='lines', line_color='red'),row=4,col=1,secondary_y=True)
 
     fig.update_xaxes(tickformat="%m/%d %H:%M\n%Y", title_text="Epoch")
     fig.update_yaxes(title_text="Br [nT]", row=1, col=1)
     fig.update_yaxes(title_text="Bt [nT]", row=2, col=1)
     fig.update_yaxes(title_text="Bn [nT]", row=3, col=1)
+    fig.update_yaxes(title_text="Vr [km/s]", row=1, col=1,secondary_y=True)
+    fig.update_yaxes(title_text="Vt [km/s]", row=2, col=1,secondary_y=True)
+    fig.update_yaxes(title_text="Vn [km/s]", row=3, col=1, secondary_y=True)
     fig.update_layout(title=dict(text="Magnetic Field",
                                  y=0.9, x=0.5,
                                  xanchor='center',

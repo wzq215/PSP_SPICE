@@ -154,6 +154,9 @@ def plot_psp_sun_carrington(start_time_str, stop_time_str):
 
     plt.figure()
     plt.plot(spice.et2datetime(times),np.rad2deg(psp_pos_carr_rtp[1]))
+    plt.title('Carrington Longitude of PSP')
+    plt.xlabel('Observation Time')
+    plt.ylabel('Carrington Longitude')
     plt.show()
 
 if __name__ == '__main__':
