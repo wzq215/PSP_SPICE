@@ -1,18 +1,16 @@
+import itertools
 import os
+from datetime import datetime
 from functools import partial
 
-import itertools
-from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
-from pathos.multiprocessing import ProcessingPool as Pool
 import spiceypy as spice
-
+from pathos.multiprocessing import ProcessingPool as Pool
 from ps_read_hdf_3d import ps_read_hdf_3d
-from wispr_insitu import plot_frames
-import furnsh_kernels
 
 from plot_body_positions import xyz2rtp_in_Carrington
+
 # Read PSI Data
 data_rho_corona = ps_read_hdf_3d(2243, 'corona', 'rho002', periodicDim=3)
 r_rho_corona = np.array(data_rho_corona['scales1'])  # in Rs, distance from sun
@@ -271,7 +269,7 @@ def get_WL_images(time_str, vignetting='quad', type='full',resolution=0.5):
 
 
 if __name__ == '__main__':
-    filename = get_WL_images('20210426T070000',type='background',resolution=0.5,vignetting='None')
+    filename = get_WL_images('20210426T000000', type='foreground', resolution=0.5, vignetting='None')
 
     # path = 'data/K_corona_from_psi'
     # vignetting = 'quad'

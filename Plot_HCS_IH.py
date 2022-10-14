@@ -60,8 +60,6 @@ def parker_spiral(r_vect_au, lat_beg_deg, lon_beg_deg, Vsw_r_vect_kmps):
 # set time range for PSP orbit
 start_time = '2021-04-28'
 stop_time = '2021-05-01'
-# start_time = '2022-02-12'
-# stop_time = '2022-03-12'
 start_dt = datetime.strptime(start_time, '%Y-%m-%d')
 stop_dt = datetime.strptime(stop_time, '%Y-%m-%d')
 utc = [start_dt.strftime('%b %d, %Y'), stop_dt.strftime('%b %d, %Y')]
@@ -71,8 +69,23 @@ etTwo = spice.str2et(utc[1])
 step = 100
 times = [x * (etTwo - etOne) / step + etOne for x in range(step)]
 
+psp_utc_str = '20181104T000000'
+
+# convert psp_pos to carrington coordination system
+et = spice.datetime2et(datetime.strptime(psp_utc_str, '%Y%m%dT%H%M%S'))
+subpnt_psp = spice.subpnt('INTERCEPT/ELLIPSOID', 'SUN', et, 'IAU_SUN', 'None', 'SPP')
+subpnt_lat = np.rad2deg(spice.reclat(subpnt_psp[0])[1:])
+if subpnt_lat[0] < 0:
+    subpnt_lat[0] = subpnt_lat[0] + 360
+subpnt_lat[1] = 90 - subpnt_lat[1]
+psp_r = np.linalg.norm(subpnt_psp[0] - subpnt_psp[2], 2) / Rs
+print('-------PSP-------')
+print(psp_r)
+print(subpnt_lat[0])
+print(subpnt_lat[1])
+
 # Load Psi Data
-data_br = ps_read_hdf_3d(2243, 'corona', 'br002', periodicDim=3)
+data_br = ps_read_hdf_3d(2243, 'helio', 'br002', periodicDim=3)
 # data_br = h5py.File('simulation/20210117T131000/corona_h5/br002.h5')
 r_br = np.array(data_br['scales1'])  # 201 in Rs, distance from sun
 t_br = np.array(data_br['scales2'])  # 150 in rad, latitude
@@ -80,9 +93,7 @@ p_br = np.array(data_br['scales3'])  # 256 in rad, Carrington longitude
 br = np.array(data_br['datas'])  # 1CU = 2.205G = 2.205e-4T = 2.205e5nT
 br = br * 2.205e5  # nT
 # print(t_br)
-print(br.shape)
-quit()
-data_rho = ps_read_hdf_3d(2243, 'corona', 'rho002',
+data_rho = ps_read_hdf_3d(2243, 'helio', 'rho002',
                           periodicDim=3)  # h5py.File('simulation/20210117T131000/corona_h5/rho002.h5')
 r_rho = np.array(data_rho['scales1'])  # 201 in Rs, distance from sun
 t_rho = np.array(data_rho['scales2'])  # 150 in rad, latitude
@@ -90,12 +101,17 @@ p_rho = np.array(data_rho['scales3'])  # 256 in rad, Carrington longitude
 rho = np.array(data_rho['datas'])
 rho = rho * 1e8  # cm^-3
 # print(t_rho)
-data_vr = ps_read_hdf_3d(2243, 'corona', 'vr002', periodicDim=3)
+data_vr = ps_read_hdf_3d(2243, 'helio', 'vr002', periodicDim=3)
 r_vr = np.array(data_vr['scales1'])  # 201 in Rs, distance from sun
 t_vr = np.array(data_vr['scales2'])  # 150 in rad, latitude
 p_vr = np.array(data_vr['scales3'])  # 256 in rad, Carrington longitude
 vr = np.array(data_vr['datas'])
 vr = vr * 481.3711  # km/s
+
+# Find indexs for PSP in PSI dataset
+p_index = abs(np.rad2deg(p_br) - subpnt_lat[0]).argmin()
+t_index = abs(np.rad2deg(t_br) - subpnt_lat[1]).argmin()
+r_index = abs(r_vr - psp_r).argmin()
 
 # get HCS (isosurface of Br=0)
 tv, pv, rv = np.meshgrid(t_br, p_br, r_br, indexing='xy')
@@ -110,7 +126,7 @@ isos_br = mesh.contour(isosurfaces=1, rng=[0, 0])
 
 mesh_z0 = pyvista.StructuredGrid(xv, yv, zv)
 mesh_z0.point_data['values'] = zv.ravel(order='F')  # also the active scalars
-isos_z0 = mesh_z0.contour(isosurfaces=1, rng=[-1.2, -1.2])
+isos_z0 = mesh_z0.contour(isosurfaces=1, rng=[-8, -8])
 # isos.plot(opacity=0.7)
 
 # get Isosurface of rho*r^2
@@ -124,9 +140,8 @@ rholog = rho * rv2 ** 2
 print('min', np.nanmin(rholog))
 print('max', np.nanmax(rholog))
 mesh2.point_data['values'] = rholog.ravel(order='F')  # also the active scalars
-isos_rho = mesh2.contour(isosurfaces=1, rng=[9e5, 9e5])
-
-# isos2.plot(opacity=0.9)
+isos_rho = mesh2.contour(isosurfaces=1, rng=[8e5, 8e5])
+# isos_rho.plot(opacity=0.9)
 
 
 # Color HCS by Vr
@@ -151,7 +166,7 @@ intensity = np.array(vr_points).reshape(-1, 1)
 plot = go.Figure()
 plot.add_trace(go.Mesh3d(x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
                          opacity=1,  # colorscale='Magma',
-                         colorscale='Picnic',
+                         colorscale='picnic',
                          cmax=500, cmin=300,
                          #  color='purple',
                          i=triangles[:, 1], j=triangles[:, 2], k=triangles[:, 3],
@@ -166,7 +181,7 @@ plot.add_trace(go.Mesh3d(x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
 vertices2 = isos_br.points
 triangles2 = isos_br.faces.reshape(-1, 4)
 plot.add_trace(go.Mesh3d(x=vertices2[:, 0], y=vertices2[:, 1], z=vertices2[:, 2],
-                         opacity=0.6, color='purple',
+                         opacity=0.7, color='purple',
                          # colorscale='jet',
                          # colorscale='Viridis',
                          # cmax=450, cmin=150,
@@ -175,8 +190,8 @@ plot.add_trace(go.Mesh3d(x=vertices2[:, 0], y=vertices2[:, 1], z=vertices2[:, 2]
                          showscale=False,
                          ))
 
-# vertices2 = isos_rho.points
-# triangles2 = isos_rho.faces.reshape(-1, 4)
+vertices2 = isos_rho.points
+triangles2 = isos_rho.faces.reshape(-1, 4)
 # plot.add_trace(go.Mesh3d(x=vertices2[:, 0], y=vertices2[:, 1], z=vertices2[:, 2],
 #                          opacity=0.3,color='azure',
 #                          #colorscale='jet',
@@ -187,7 +202,15 @@ plot.add_trace(go.Mesh3d(x=vertices2[:, 0], y=vertices2[:, 1], z=vertices2[:, 2]
 #                          showscale=False,
 #                          ))
 
-# tv, pv, rv = np.meshgrid(t_vr, p_vr,
+tv, pv, rv = np.meshgrid(t_vr, p_vr, r_vr, indexing='xy')
+rv = rv[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
+pv = pv[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
+tv = tv[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
+
+vr_plot = vr[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
+xv = rv * np.cos(pv) * np.sin(tv)
+yv = rv * np.sin(pv) * np.sin(tv)
+zv = rv * np.cos(tv)
 
 psp_pos, _ = spice.spkpos('SPP', times, 'IAU_SUN', 'NONE', 'SUN')  # km
 psp_pos = psp_pos.T / Rs
@@ -260,10 +283,8 @@ marker_dts = [datetime(2021, 4, 22, 0, 0, 0), datetime(2021, 4, 23, 0, 0, 0),
               datetime(2021, 4, 30, 0, 0, 0), datetime(2021, 5, 1, 0, 0, 0),
               datetime(2021, 5, 2, 0, 0, 0), datetime(2021, 5, 3, 0, 0, 0),
               datetime(2021, 5, 4, 0, 0, 0), datetime(2021, 5, 5, 0, 0, 0), ]
-marker_dts = [
-    datetime(2021, 4, 28, 0, 0, 0), datetime(2021, 4, 29, 0, 0, 0),
-    datetime(2021, 4, 30, 0, 0, 0), datetime(2021, 5, 1, 0, 0, 0),
-]
+marker_dts = [datetime(2021, 4, 28, 0, 0, 0), datetime(2021, 4, 29, 0, 0, 0),
+              datetime(2021, 4, 30, 0, 0, 0), datetime(2021, 5, 1, 0, 0, 0), ]
 marker_dts = [datetime(2021, 4, 28, 15, 20), datetime(2021, 4, 29, 13, 40), datetime(2021, 4, 30, 4, 30)]
 # marker_dts=[datetime(2018,10,24,0,0,0),datetime(2018,10,25,0,0,0),datetime(2018,10,26,0,0,0),datetime(2018,10,27,0,0,0),
 #             datetime(2018,10,28,0,0,0),datetime(2018,10,29,0,0,0),datetime(2018,10,30,0,0,0),datetime(2018,10,31,0,0,0),
@@ -271,31 +292,27 @@ marker_dts = [datetime(2021, 4, 28, 15, 20), datetime(2021, 4, 29, 13, 40), date
 #             datetime(2018,11,5,0,0,0),datetime(2018,11,6,0,0,0),datetime(2018,11,7,0,0,0),datetime(2018,11,8,0,0,0),
 #             datetime(2018,11,9,0,0,0),datetime(2018,11,10,0,0,0),datetime(2018,11,11,0,0,0),datetime(2018,11,12,0,0,0),
 #             datetime(2018,11,13,0,0,0),datetime(2018,11,14,0,0,0),datetime(2018,11,15,0,0,0),datetime(2018,11,16,0,0,0),]
-# marker_dts = [datetime(2022, 2, 15), datetime(2022, 2, 16), datetime(2022, 2, 17), datetime(2022, 2, 18),
-#               datetime(2022, 2, 19),
-#               datetime(2022, 2, 20), datetime(2022, 2, 21), datetime(2022, 2, 22), datetime(2022, 2, 23),
-#               datetime(2022, 2, 24),
-#               datetime(2022, 2, 25), datetime(2022, 2, 26), datetime(2022, 2, 27), datetime(2022, 2, 28),
-#               datetime(2022, 3, 1),
-#               datetime(2022, 3, 2), datetime(2022, 3, 3), datetime(2022, 3, 4), datetime(2022, 3, 5),
-#               datetime(2022, 3, 6),
-#               datetime(2022, 3, 7),
+# marker_dts = [datetime(2022,2,15),datetime(2022,2,16),datetime(2022,2,17),datetime(2022,2,18),datetime(2022,2,19),
+#               datetime(2022,2,20),datetime(2022,2,21),datetime(2022,2,22),datetime(2022,2,23),datetime(2022,2,24),
+#               datetime(2022,2,25),datetime(2022,2,26),datetime(2022,2,27),datetime(2022,2,28),datetime(2022,3,1),
+#               datetime(2022,3,2),datetime(2022,3,3),datetime(2022,3,4),datetime(2022,3,5),datetime(2022,3,6),
+#               datetime(2022,3,7),
 #               ]
 marker_ets = [spice.datetime2et(dt) for dt in marker_dts]
-marker_txts = [dt.strftime('%m%d-%H:%M') for dt in marker_dts]
+marker_txts = [dt.strftime('%m%d\n%H%M') for dt in marker_dts]
 
 psp_obs_cross, _ = spice.spkpos('SPP', marker_ets, 'IAU_SUN', 'NONE', 'SUN')  # km
 psp_obs_cross = np.array(psp_obs_cross.T / Rs)
+# print(psp_obs_cross)
 AU = 1.49597871e8
 r_1au = AU / Rs
-r_ss = 2.5
 from plot_body_positions import rtp2xyz_in_Carrington
 
 for i in range(len(marker_ets)):
     print(psp_obs_cross[:, i])
     r_psp_obs_cross, lon_psp_obs_cross, lat_psp_obs_cross = xyz2rtp_in_Carrington(psp_obs_cross[:, i], for_psi=True)
     print(r_psp_obs_cross, lon_psp_obs_cross, lat_psp_obs_cross)
-    r_vect = np.linspace(r_psp_obs_cross, r_ss, num=100)
+    r_vect = np.linspace(r_psp_obs_cross, r_1au, num=100)
     # print(r_vect)
     r_ind = np.argmin(abs(r_psp_obs_cross - r_vr))
     p_ind = np.argmin(abs(lon_psp_obs_cross - p_vr))
@@ -310,30 +327,30 @@ for i in range(len(marker_ets)):
     lat_vect = np.deg2rad(lat_vect)
     print(lon_vect[0], lat_vect[0])
     x_vect, y_vect, z_vect = rtp2xyz_in_Carrington([r_vect, lon_vect, lat_vect], for_psi=False)
-    plot.add_trace(go.Scatter3d(x=x_vect, y=y_vect, z=z_vect,
+    plot.add_trace(go.Scatter3d(x=x_vect, y=y_vect, z=(z_vect * 0 + z_vect) / 2,
                                 mode='lines', line=dict(color='white', width=5), ))
     print('----------')
-
 # psp_obs_cross = {'x': psp_obs_cross[0], 'y': psp_obs_cross[1], 'z': psp_obs_cross[2]}
 # psp_obs_cross = pd.DataFrame(data=psp_obs_cross)
 plot.add_trace(go.Scatter3d(x=np.array(psp_obs_cross[0]), y=np.array(psp_obs_cross[1]), z=np.array(psp_obs_cross[2]),
                             mode='markers+text',
-                            marker=dict(size=5,
+                            marker=dict(size=3,
                                         color='white',
                                         symbol='diamond'),
-                            text=marker_txts, textfont=dict(size=20, color='white'),
+                            text=marker_txts, textfont=dict(size=10, color='white'),
                             # name='Orbit of PSP (' + start_time + '~' + stop_time + ')',
                             ))
 
-# put_psp_stl_pos = psp_obs_cross[:, 0]
+# put_psp_stl_pos = psp_obs_cross[:,11]
 # print(put_psp_stl_pos)
-# lon = np.rad2deg(np.arccos(put_psp_stl_pos[0] / np.sqrt(put_psp_stl_pos[1] ** 2 + put_psp_stl_pos[0] ** 2)))
+# lon = np.rad2deg(np.arccos(put_psp_stl_pos[0]/np.sqrt(put_psp_stl_pos[1]**2+put_psp_stl_pos[0]**2)))
 # print(lon)
-# if put_psp_stl_pos[1] < 0:
-#     lon = 360 - lon
-# # print(clon+rot_angle)
-#
-# plot.add_trace(add_texture(put_psp_stl_pos, lon + 180, scale=10))
+# if put_psp_stl_pos[1]<0:
+#     lon = 360-lon
+# print(clon+rot_angle)
+
+# plot.add_trace(add_texture(put_psp_stl_pos,lon+180,scale=10))
+
 
 # psp_simu_cross, _ = spice.spkpos('SPP', simu_cross, 'IAU_SUN', 'NONE', 'SUN')  # km
 # psp_simu_cross = np.array(psp_simu_cross.T / Rs)
@@ -358,10 +375,11 @@ plot.update_layout(
         xaxis_title='X (Rs)',
         yaxis_title='Y (Rs)',
         zaxis_title='Z (Rs)',
-        xaxis_range=[-30, 30],
-        yaxis_range=[-30, 30],
-        zaxis_range=[-15, 15],
-        aspectratio=dict(x=3., y=3., z=1.5)),
+        # xaxis_range=[-80, 40],
+        # yaxis_range=[-40, 80],
+        # zaxis_range=[-25, 25],
+        # aspectratio=dict(x=1.2,y=1.2,z=0.5)),
+    ),
     showlegend=False,
     # legend=dict(
     #     orientation="h",
@@ -372,4 +390,4 @@ plot.update_layout(
     template='seaborn',
     margin=dict(autoexpand=False, b=0, t=0)
 )
-py.plot(plot, filename='HCS_SC_(' + start_time + '_' + stop_time + ').html')
+py.plot(plot, filename='HCS_IH(' + start_time + '_' + stop_time + ').html')

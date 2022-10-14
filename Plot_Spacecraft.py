@@ -4,15 +4,16 @@
 @Author: Ziqi Wu
 @Date of Last Change: 2022-02-18
 """
-import os
 
-import pyvista as pv
-import numpy as np
-from plotly import graph_objects as go
-import plotly.offline as py
-import spiceypy as spice
 from datetime import datetime
-import furnsh_kernels
+
+import numpy as np
+import plotly.offline as py
+import pyvista as pv
+import spiceypy as spice
+from plotly import graph_objects as go
+
+
 # from ps_read_hdf_3d import get_path
 
 
@@ -23,33 +24,18 @@ def add_texture(pos, rot_theta, scale=10):
     :param scale: A float, 10 by default. Scaling of the spacecraft.
     :return: A trace (go.Mesh3d()) for plotly.
     """
-    # path = os.path.join(get_path(), 'Data')
-    # mesh = pv.read(path+'/Stereo.stl')
-
-    mesh = pv.read('/Users/ephe/Desktop/SolHelio-Viewer/ParkerSolarProbe.stl')
-    print(mesh)
-    # mesh.plot()
-    # scale = 10
+    mesh = pv.read('ParkerSolarProbe.stl')
     mesh.points = scale * mesh.points / np.max(mesh.points)
-    theta_x = 180 # Red
-    theta_z = 90 # Green
-    theta_y = 0 # Yellow
+    theta_x = 270  # Red
+    theta_z = 90 + rot_theta  # Green
+    theta_y = 0  # Yellow
     axes = pv.Axes(show_actor=True, actor_scale=5.0, line_width=10)
     axes.origin = (0, 0, 0)
     rot = mesh.rotate_x(theta_x, point=axes.origin, inplace=False)
     rot = rot.rotate_z(theta_z, point=axes.origin, inplace=False)
     rot = rot.rotate_y(theta_y, point=axes.origin, inplace=False)
-    # rot = mesh
-    # Visualize by Pyvista
-    p = pv.Plotter()
-    p.add_actor(axes.actor,pickable=True)
-    p.add_mesh(rot)
-    # p.add_mesh(mesh)
-    p.show()
 
     vertices = rot.points
-    print(rot.points.shape)
-    print(rot.faces.shape)
     triangles = rot.faces.reshape(-1, 4)
     trace = go.Mesh3d(x=vertices[:, 0] + pos[0], y=vertices[:, 1] + pos[1], z=vertices[:, 2] + pos[2],
                       opacity=1,
@@ -171,8 +157,8 @@ def plot_span_a_electron(pos, rot_theta, dt,scale=10):
     mesh = pv.read('/Users/ephe/Desktop/SolHelio-Viewer/ParkerSolarProbe.stl')
     mesh.points = scale * mesh.points / np.max(mesh.points)
 
-    theta_x = 180 # Red
-    theta_z = 90 # Green
+    theta_x = 90  # Red
+    theta_z = 90  # Green
     theta_y = 0 # Yellow
     axes = pv.Axes(show_actor=True, actor_scale=5.0, line_width=10)
     axes.origin = (0, 0, 0)

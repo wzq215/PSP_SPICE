@@ -1,6 +1,6 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
 
 # et1 = spice.datetime2et(datetime.strptime('20210116T010019','%Y%m%dT%H%M%S'))
 # et2 = spice.datetime2et(datetime.strptime('20210116T040019','%Y%m%dT%H%M%S'))
@@ -32,8 +32,8 @@ import matplotlib.pyplot as plt
 
 timestr='20210116T040019'
 timestr2 = '20210116T033019'
-im = Image.open('psp/wispr/images/inner/psp_L3_wispr_'+timestr+'_V1_1221.png')
-im2 = Image.open('psp/wispr/images/inner/psp_L3_wispr_'+timestr2+'_V1_1221.png')
+im = Image.open('psp/wispr/images/inner/psp_L3_wispr_' + timestr + '_V1_1221.png')
+im2 = Image.open('data/orbit08/20210426/psp_L3_wispr_20210426T051215_V1_1221.fits')
 
 a=179
 b=212
