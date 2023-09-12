@@ -2,19 +2,17 @@
 Revised @23/02/14'''
 import os
 from datetime import datetime, timedelta
-import pandas as pd
+
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 import plotly.offline as py
-import matplotlib
+import scipy.constants as C
 from matplotlib.ticker import AutoMinorLocator
 from plotly.subplots import make_subplots
 from spacepy import pycdf
-import scipy.constants as C
-# --- Disable codes in need of rlonlat_psp ---
-from plot_body_positions import get_rlonlat_psp_carr
-import furnsh_kernels
 
 os.environ["CDF_LIB"] = "/usr/local/cdf/lib"
 psp_data_path = '/Users/ephe/PSP_Data_Analysis/Encounter08/'
@@ -664,6 +662,9 @@ if __name__ == '__main__':
         plt.title('EFLUX vs PHI (alpha)')
         plt.show()
     # %%
+    # --- Disable codes in need of rlonlat_psp ---
+    from plot_body_positions import get_rlonlat_psp_carr
+
     r_psp_carr_pmom, lon_psp_carr_pmom, lat_psp_carr_pmom = get_rlonlat_psp_carr(epochamom, for_psi=False)
     r_psp_carr_mag, lon_psp_carr_mag, lat_psp_carr_mag = get_rlonlat_psp_carr(epochmag, for_psi=False)
 
