@@ -303,6 +303,18 @@ def find_WISPR_for_PSP(insitu_time, wispr_time_range):
 
 
 if __name__ == "__main__":
-    dt = datetime(2021, 1, 1)
+    from datetime import timedelta
+
+    dt = datetime(2022, 2, 25, 12, 30, 0, 0)
     et = spice.datetime2et(dt)
-    plot_frames(et)
+    datetime_beg = datetime(2022, 2, 20, 0, 0, 0)
+    datetime_end = datetime(2022, 2, 25, 12, 0, 0)
+
+    timestep = timedelta(hours=6)
+    steps = (datetime_end - datetime_beg) // timestep + 1
+    dttimes = np.array([x * timestep + datetime_beg for x in range(steps)])
+    times = spice.datetime2et(dttimes)
+    # plot_frames(et)
+    inner_lst, outer_lst = find_WISPR_for_PSP(et, times)
+    print(inner_lst)
+    # print(outer_lst)

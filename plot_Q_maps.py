@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import astropy.units as u
+import astropy.constants as const
 import matplotlib.colors as mcolor
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,6 +16,7 @@ from scipy.interpolate import interp2d
 
 from load_psp_data import load_RTN_1min_data
 from plot_body_positions import get_rlonlat_psp_carr
+import furnsh_kernels
 
 datetime_beg = datetime(2021, 4, 28, 15, 30, 0)
 datetime_end = datetime(2021, 4, 30, 4, 30, 0)
@@ -89,14 +91,17 @@ chmap_data = chmapheader.data
 Qdata, Qheader = sunpy.io.fits.read('/Users/ephe/Downloads/hmi.q_synop.2243.slogQ.fits')
 Q_data = Qheader.data
 
-# wavelength = 195
-# query = (a.Time('2021/4/27','2021/4/29')) & a.Instrument('SECCHI') & a.Source('STEREO_A') & a.Detector('EUVI') & a.Wavelength(wavelength*u.Angstrom)
-# results = Fido.search(query)
-# print(results)
-# data_dir = '/Users/ephe/STEREO_Data/EUVI/'+str(wavelength)+'/'
-# dld_file = Fido.fetch(results,path=data_dir+'{file}',overwrite=False)
+from sunpy.net import Fido, attrs as a
 
+wavelength = 195
+query = (a.Time('2004/9/5', '2004/9/5')) & a.Instrument('SECCHI') & a.Source('STEREO_A') & a.Detector(
+    'EUVI') & a.Wavelength(wavelength * u.Angstrom)
+results = Fido.search(query)
+print(results)
+data_dir = '/Users/ephe/STEREO_Data/EUVI/' + str(wavelength) + '/'
+dld_file = Fido.fetch(results, path=data_dir + '{file}', overwrite=False)
 
+quit()
 # data,header = sunpy.io.fits.read('/Users/ephe/STEREO_Data/EUVI20210429_081910_n4eua.fts')[0]
 
 long0 = 105
@@ -204,65 +209,66 @@ ax.set_ylabel('latitude')
 ax.set_ylabel('longitude')
 ax.set_title('Open (blue/red) and closed (black) field')
 # ax.set_aspect(0.5 * 360 / 2)
-
-plt.show()
-# fig = plt.figure()
-plt.subplot(1, 2, 1)
-plt.imshow(Magmap[:, np.arange(360) - 107])
-# B_pfss = pfss_out.bc
-# plt.contour(B_pfss[:,:,-1,0])
-plt.set_cmap('RdBu_r')
-plt.colorbar()
-plt.clim([-8, 8])
-plt.gca().invert_yaxis()
-plt.xticks(np.arange(0, 360, step=30), np.arange(0, 360, step=30))
-plt.yticks(np.arange(0, 180, step=30), np.arange(-90, 90, step=30))
-plt.gca().set_aspect(1)
-# plt.show()
 # quit()
 
-for field_line in field_lines:
-    try:
-        field_line.representation_type = 'spherical'
-        plt.plot(field_line.lon * 360 / 360, (field_line.lat + 90 * u.deg) * 180 / 180, 'gray', linewidth=0.5)
-        print(field_line.lon[0] * 360 / 360)
-
-    except:
-        print('Nan')
-print(photo_lon_ind)
-plt.scatter(ss_lon_ind / 4, ss_lat_ind / 4, c=np.sign(Br_interp), s=8, cmap='RdBu_r', label='FP @Source Surface')
-plt.scatter(photo_lon_ind / 4, photo_lat_ind / 4, s=5, c='green', marker='o',
-            label='FP @Photosphere')  # c=np.arange(len(df_trace['Epoch']))
-plt.scatter(ss_lon_ind[[0, 44, 74]] / 4, ss_lat_ind[[0, 44, 74]] / 4, c='white', s=10)
-plt.xlim([0, 180])
-plt.title('$Br [nT]$')
-plt.ylabel('Latitude')
-
-ax2 = fig.add_subplot(1, 2, 2, projection=outmap_sub)
-
-# fig = plt.figure()
-outmap_sub.plot(clip_interval=(10., 99.9) * u.percent)
-plt.colorbar()
-print(outmap_sub)
-for field_line in field_lines:
-    try:
-        field_line.representation_type = 'spherical'
-        plt.plot(field_line.lon * 1440 / 360, (field_line.lat + 90 * u.deg) * 720 / 180, 'gray', linewidth=0.5)
-        print(field_line.lon[0] * 1440 / 360)
-
-    except:
-        print('Nan')
-print(photo_lon_ind)
-plt.scatter(ss_lon_ind, ss_lat_ind, c=np.sign(Br_interp), s=8, cmap='RdBu_r', label='FP @Source Surface')
-plt.scatter(photo_lon_ind, photo_lat_ind, s=5, c='white', marker='o',
-            label='FP @Photosphere')  # c=np.arange(len(df_trace['Epoch']))
-# ax2.set_xticks(np.arange(0,720,step=120),np.arange(0,180,step=30))
-# ax2.set_yticks(np.arange(0,720,step=120),np.arange(-90,90,step=30))
-ax2.set_xlabel(' ')
-ax2.set_ylabel(' ')
-ax2.set_title('193 A')
+# plt.show()
+# # fig = plt.figure()
+# plt.subplot(1, 2, 1)
+# plt.imshow(Magmap[:, np.arange(360) - 107])
+# # B_pfss = pfss_out.bc
+# # plt.contour(B_pfss[:,:,-1,0])
+# plt.set_cmap('RdBu_r')
 # plt.colorbar()
-plt.show()
+# plt.clim([-8, 8])
+# plt.gca().invert_yaxis()
+# plt.xticks(np.arange(0, 360, step=30), np.arange(0, 360, step=30))
+# plt.yticks(np.arange(0, 180, step=30), np.arange(-90, 90, step=30))
+# plt.gca().set_aspect(1)
+# # plt.show()
+# # quit()
+#
+# for field_line in field_lines:
+#     try:
+#         field_line.representation_type = 'spherical'
+#         plt.plot(field_line.lon * 360 / 360, (field_line.lat + 90 * u.deg) * 180 / 180, 'gray', linewidth=0.5)
+#         print(field_line.lon[0] * 360 / 360)
+#
+#     except:
+#         print('Nan')
+# print(photo_lon_ind)
+# plt.scatter(ss_lon_ind / 4, ss_lat_ind / 4, c=np.sign(Br_interp), s=8, cmap='RdBu_r', label='FP @Source Surface')
+# plt.scatter(photo_lon_ind / 4, photo_lat_ind / 4, s=5, c='green', marker='o',
+#             label='FP @Photosphere')  # c=np.arange(len(df_trace['Epoch']))
+# plt.scatter(ss_lon_ind[[0, 44, 74]] / 4, ss_lat_ind[[0, 44, 74]] / 4, c='white', s=10)
+# plt.xlim([0, 180])
+# plt.title('$Br [nT]$')
+# plt.ylabel('Latitude')
+#
+# ax2 = fig.add_subplot(1, 2, 2, projection=outmap_sub)
+#
+# # fig = plt.figure()
+# outmap_sub.plot(axes=ax2,clip_interval=(10., 99.9) * u.percent)
+# plt.colorbar()
+# print(outmap_sub)
+# for field_line in field_lines:
+#     try:
+#         field_line.representation_type = 'spherical'
+#         plt.plot(field_line.lon * 1440 / 360, (field_line.lat + 90 * u.deg) * 720 / 180, 'gray', linewidth=0.5)
+#         print(field_line.lon[0] * 1440 / 360)
+#
+#     except:
+#         print('Nan')
+# print(photo_lon_ind)
+# plt.scatter(ss_lon_ind, ss_lat_ind, c=np.sign(Br_interp), s=8, cmap='RdBu_r', label='FP @Source Surface')
+# plt.scatter(photo_lon_ind, photo_lat_ind, s=5, c='white', marker='o',
+#             label='FP @Photosphere')  # c=np.arange(len(df_trace['Epoch']))
+# # ax2.set_xticks(np.arange(0,720,step=120),np.arange(0,180,step=30))
+# # ax2.set_yticks(np.arange(0,720,step=120),np.arange(-90,90,step=30))
+# ax2.set_xlabel(' ')
+# ax2.set_ylabel(' ')
+# ax2.set_title('193 A')
+# # plt.colorbar()
+# plt.show()
 
 fig = plt.figure()
 ax1 = fig.add_subplot(2, 2, 1)
@@ -295,7 +301,6 @@ plt.ylabel('Latitude')
 plt.colorbar()
 
 ax2 = fig.add_subplot(2, 2, 2, projection=outmap_sub)
-
 # fig = plt.figure()
 outmap_sub.plot(clip_interval=(15., 99.9) * u.percent)
 print(outmap_sub)

@@ -9,6 +9,7 @@ import spiceypy as spice
 from ps_read_hdf_3d import ps_read_hdf_3d
 
 from plot_body_positions import xyz2rtp_in_Carrington
+import furnsh_kernels
 
 Rs = 696300  # km
 
@@ -58,8 +59,8 @@ def parker_spiral(r_vect_au, lat_beg_deg, lon_beg_deg, Vsw_r_vect_kmps):
 # ========Data Preparation=======
 
 # set time range for PSP orbit
-start_time = '2021-04-28'
-stop_time = '2021-05-01'
+start_time = '2022-02-16'
+stop_time = '2022-03-12'
 # start_time = '2022-02-12'
 # stop_time = '2022-03-12'
 start_dt = datetime.strptime(start_time, '%Y-%m-%d')
@@ -72,16 +73,42 @@ step = 100
 times = [x * (etTwo - etOne) / step + etOne for x in range(step)]
 
 # Load Psi Data
-data_br = ps_read_hdf_3d(2243, 'corona', 'br002', periodicDim=3)
+data_br = ps_read_hdf_3d(2254, 'corona', 'br002', periodicDim=3)
 # data_br = h5py.File('simulation/20210117T131000/corona_h5/br002.h5')
 r_br = np.array(data_br['scales1'])  # 201 in Rs, distance from sun
 t_br = np.array(data_br['scales2'])  # 150 in rad, latitude
 p_br = np.array(data_br['scales3'])  # 256 in rad, Carrington longitude
 br = np.array(data_br['datas'])  # 1CU = 2.205G = 2.205e-4T = 2.205e5nT
 br = br * 2.205e5  # nT
+
+data_bt = ps_read_hdf_3d(2254, 'corona', 'bt002', periodicDim=3)
+# data_br = h5py.File('simulation/20210117T131000/corona_h5/br002.h5')
+r_bt = np.array(data_bt['scales1'])  # 201 in Rs, distance from sun
+t_bt = np.array(data_bt['scales2'])  # 150 in rad, latitude
+p_bt = np.array(data_bt['scales3'])  # 256 in rad, Carrington longitude
+bt = np.array(data_bt['datas'])  # 1CU = 2.205G = 2.205e-4T = 2.205e5nT
+bt = bt * 2.205e5  # nT
+# print(bt.shape)
+
+data_bp = ps_read_hdf_3d(2254, 'corona', 'bp002', periodicDim=3)
+# data_br = h5py.File('simulation/20210117T131000/corona_h5/br002.h5')
+r_bp = np.array(data_bp['scales1'])  # 201 in Rs, distance from sun
+t_bp = np.array(data_bp['scales2'])  # 150 in rad, latitude
+p_bp = np.array(data_bp['scales3'])  # 256 in rad, Carrington longitude
+bp = np.array(data_bp['datas'])  # 1CU = 2.205G = 2.205e-4T = 2.205e5nT
+bp = bp * 2.205e5  # nT
+# print(bp.shape)
+
+
 # print(t_br)
 print(br.shape)
-quit()
+print(bp.shape)
+print(bt.shape)
+bp = bp[:-1, :, :]
+bt = bt[:, :-1, :]
+br = br[:, :, :-1]
+print('---')
+# quit()
 data_rho = ps_read_hdf_3d(2243, 'corona', 'rho002',
                           periodicDim=3)  # h5py.File('simulation/20210117T131000/corona_h5/rho002.h5')
 r_rho = np.array(data_rho['scales1'])  # 201 in Rs, distance from sun
@@ -98,16 +125,24 @@ vr = np.array(data_vr['datas'])
 vr = vr * 481.3711  # km/s
 
 # get HCS (isosurface of Br=0)
-tv, pv, rv = np.meshgrid(t_br, p_br, r_br, indexing='xy')
-
+tv, pv, rv = np.meshgrid(t_br, p_br, r_br[:-1], indexing='xy')
+print(tv.shape)
 xv = rv * np.cos(pv) * np.sin(tv)
 yv = rv * np.sin(pv) * np.sin(tv)
 zv = rv * np.cos(tv)
-
+b_nonr = np.rad2deg(np.arcsin(np.sqrt(bt ** 2 + bp ** 2) / np.sqrt(bt ** 2 + bp ** 2 + br ** 2)))
+b_nonr = np.sqrt(bt ** 2 + bp ** 2)
+print(np.nanmin(b_nonr))
+print(np.nanmax(b_nonr))
+# print(b_nonr.shape)
 mesh = pyvista.StructuredGrid(xv, yv, zv)
+# mesh.point_data['values'] = br.ravel(order='F')  # also the active scalars
+# isos_nonr = mesh.contour(isosurfaces=10, rng=[500.,1000.])
+# isos_nonr.plot(show_grid=True,opacity=.5)
 mesh.point_data['values'] = br.ravel(order='F')  # also the active scalars
-isos_br = mesh.contour(isosurfaces=1, rng=[0, 0])
-
+isos_br = mesh.contour(isosurfaces=3, rng=[-20, 20])
+isos_br.plot(show_grid=True, opacity=0.9)
+quit()
 mesh_z0 = pyvista.StructuredGrid(xv, yv, zv)
 mesh_z0.point_data['values'] = zv.ravel(order='F')  # also the active scalars
 isos_z0 = mesh_z0.contour(isosurfaces=1, rng=[-1.2, -1.2])
@@ -265,6 +300,8 @@ marker_dts = [
     datetime(2021, 4, 30, 0, 0, 0), datetime(2021, 5, 1, 0, 0, 0),
 ]
 marker_dts = [datetime(2021, 4, 28, 15, 20), datetime(2021, 4, 29, 13, 40), datetime(2021, 4, 30, 4, 30)]
+marker_dts = [datetime(2022, 2, 17, 17, 0, 0), datetime(2022, 2, 17, 23, 30, 0), datetime(2022, 2, 25, 12, 30, 0),
+              datetime(2022, 3, 10, 23, 0, 0), datetime(2022, 3, 11, 12, 0, 0)]
 # marker_dts=[datetime(2018,10,24,0,0,0),datetime(2018,10,25,0,0,0),datetime(2018,10,26,0,0,0),datetime(2018,10,27,0,0,0),
 #             datetime(2018,10,28,0,0,0),datetime(2018,10,29,0,0,0),datetime(2018,10,30,0,0,0),datetime(2018,10,31,0,0,0),
 #             datetime(2018,11,1,0,0,0),datetime(2018,11,2,0,0,0),datetime(2018,11,3,0,0,0),datetime(2018,11,4,0,0,0),

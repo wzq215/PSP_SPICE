@@ -260,11 +260,15 @@ def find_WISPR_for_PSP(insitu_time, wispr_time_range):
 
         insitu_innerpos_tmp, _ = spice.spkcpt(insitu_pos * AU, 'SUN', 'SPP_HCI', wispr_time_tmp, 'SPP_WISPR_INNER',
                                               'OBSERVER', 'NONE', 'SPP')
+        sun_innerpos_tmp, _ = spice.spkcpt(sun_pos.T, 'SUN', 'SPP_HCI', wispr_time_tmp, 'SPP_WISPR_INNER',
+                                           'OBSERVER', 'NONE', 'SPP')
         insitu_outerpos_tmp, _ = spice.spkcpt(insitu_pos * AU, 'SUN', 'SPP_HCI', wispr_time_tmp, 'SPP_WISPR_OUTER',
                                               'OBSERVER', 'NONE', 'SPP')
 
-        insitu_innerpos_lat = spice.reclat(insitu_innerpos_tmp[[2, 0, 1]])
+        insitu_innerpos_lat = np.array(spice.reclat(insitu_innerpos_tmp[[2, 0, 1]]))
         insitu_outerpos_lat = spice.reclat(insitu_outerpos_tmp[[2, 0, 1]])
+        sun_innerpos_lat = np.array(spice.reclat(sun_innerpos_tmp[[2, 0, 1]]))
+        insitu_innerpos_lat[1:3] = np.array(insitu_innerpos_lat[1:3]) - np.array(sun_innerpos_lat[1:3])
 
         print(np.rad2deg(insitu_innerpos_lat[1:3]))
         print(np.rad2deg(insitu_outerpos_lat[1:3]))
@@ -489,16 +493,16 @@ def Plot_Jmap_PSP(wispr_time_str, pre_wispr_time_str, data_path):
     y_indexs = k * (x_indexs - sun_x_inner) + sun_y_inner
     x_indexs = x_indexs[y_indexs < 1020]
     y_indexs = y_indexs[y_indexs < 1020]
-    plt.figure()
-    plt.imshow(rd_data.T)
-    plt.gca().invert_yaxis()
-    plt.clim([-4e-14, 4e-14])
-    plt.set_cmap('gist_gray')
-    plt.plot(x_indexs, y_indexs - 20, 'r-')
-    plt.plot(x_indexs, y_indexs + 20, 'r-')
-
-    plt.title(wispr_time_str)
-    plt.show()
+    # plt.figure()
+    # plt.imshow(rd_data.T)
+    # plt.gca().invert_yaxis()
+    # plt.clim([-4e-14, 4e-14])
+    # plt.set_cmap('gist_gray')
+    # plt.plot(x_indexs, y_indexs - 20, 'r-')
+    # plt.plot(x_indexs, y_indexs + 20, 'r-')
+    #
+    # plt.title(wispr_time_str)
+    # plt.show()
     # quit()
 
     value_msb = (np.array([np.nansum(rd_data[int(x_indexs[i]), int(y_indexs[i] - 15):int(y_indexs[i] + 15)]) for i in
@@ -533,6 +537,27 @@ def load_wispr_inner_fits(path, datestr_list):
 
 
 if __name__ == "__main__":
+    # dt = datetime(2022, 2, 25,12,30,0,0)
+    # et = spice.datetime2et(dt)
+    # datetime_beg = datetime(2022,2,20,0,0,0)
+    # datetime_end = datetime(2022,2,24,0,0,0)
+    #
+    # timestep = timedelta(minutes=60)
+    # steps = (datetime_end - datetime_beg) // timestep + 1
+    # dttimes = np.array([x * timestep + datetime_beg for x in range(steps)])
+    # times = spice.datetime2et(dttimes)
+    # # plot_frames(et)
+    # inner_lst,outer_lst=find_WISPR_for_PSP(et,times)
+    # print(inner_lst[:,2])
+    # print(inner_lst[:,3])
+    # inner_elongation = np.sqrt(inner_lst[:,2]**2+inner_lst[:,3]**2)
+    # inner_times = spice.et2datetime(inner_lst[:,0])
+    # plt.scatter(inner_times,inner_elongation)
+    # plt.xlabel('WISPR Time')
+    # plt.ylabel('Elongation (deg)')
+    # plt.title('Target in WISPR')
+    # plt.show()
+    # quit()
     # plot_frames(et)
     # 'data/WISPR_ENC07_L3_FITS/'+wispr_date+'/psp_L3_wispr_'+wispr_time_str+'_V1_1211.fits'
 
@@ -542,29 +567,29 @@ if __name__ == "__main__":
     # quit()
     # Define files need reading
     fnamelist = []
-    path = 'data/orbit08/'
-    datetime_beg = datetime(2021, 4, 27)
-    datetime_end = datetime(2021, 4, 28)
+    path = '/Users/ephe/PSP_Data_Analysis/WISPR/orbit11/'
+    datetime_beg = datetime(2022, 2, 15)
+    datetime_end = datetime(2022, 3, 1)
 
     datetime_length = int((datetime_end - datetime_beg) / timedelta(days=1))
     datetime_list = [datetime_beg + timedelta(days=i) for i in range(datetime_length)]
     datestr_list = [dt.strftime('%Y%m%d') for dt in datetime_list]
     fnamelist = load_wispr_inner_fits(path, datestr_list)
     fnamelist.sort(key=lambda x: datetime.strptime(x[13:28], '%Y%m%dT%H%M%S'))
-    subepoch_beg = datetime(2021, 4, 27, 0, 0, 0)
-    subepoch_end = datetime(2021, 4, 28, 0, 0, 0)
+    subepoch_beg = datetime(2022, 2, 18, 0, 0, 0)
+    subepoch_end = datetime(2022, 2, 25, 0, 0, 0)
     # fnamelist = fnamelist[x for x in fnamelist if ((datetime.strptime(x[13:28],'%Y%m%dT%H%M%S')>subepoch_beg) & (datetime.strptime(x[13:28],'%Y%m%dT%H%M%S')<subepoch_end))]
     fnamelist = list(filter(lambda x: (datetime.strptime(x[13:28], '%Y%m%dT%H%M%S') > subepoch_beg) & (
-                datetime.strptime(x[13:28], '%Y%m%dT%H%M%S') < subepoch_end),
+            datetime.strptime(x[13:28], '%Y%m%dT%H%M%S') < subepoch_end),
                             fnamelist))
-
+    target_pos = spice.spkpos
     # Set Resolutions
     # ps = np.arange(0, 360, 0.5)
     # ts = np.arange(-90, 90, 0.5)
     elons = np.linspace(13, 55, 960 * 2)
 
-    plot_Jmap = True
-    plot_Carrmap = False
+    plot_Jmap = False
+    plot_Carrmap = True
     # plot_Timemap = True
     # Plot Jmaps
     if plot_Jmap:
@@ -600,35 +625,37 @@ if __name__ == "__main__":
         plt.figure()
         # plt.subplot(2,1,1)
         TIME, ELON = np.meshgrid(wispr_times, elons)
-        plt.pcolormesh(wispr_times, elons, jmap.T, cmap='gist_gray')
-        plt.clim([-4e-14, 4e-14])
+        plt.pcolormesh(wispr_times, elons, np.log10(jmap).T, cmap='gist_gray')
+        # plt.clim([-1e-14, 1e-14])
+        plt.clim([-13, -11])
         plt.ylim([14, 50])
         plt.xlim([wispr_times[0], wispr_times[-1]])
-
         plt.colorbar()
+        plt.scatter(inner_times, inner_elongation, marker='x', s=5, color='red')
+
         plt.xlabel('Time (mm-dd HH)')
         plt.ylabel('Elongation [deg]')
         plt.title('J-Map (Running Difference dt=30min)')
         # ax.xaxis.set_minor_locator(AutoMinorLocator())
         # ax.tick_params(axis="x", which='both', direction="in", pad=-15)
 
-        df_mkrs = pd.read_csv('0427Track03markers.csv')
-        plt.scatter(spice.et2datetime(np.array(df_mkrs['ets'][:])), df_mkrs['gamma_deg'], c='r', marker='x')
-        df_prds = pd.read_csv('0427Track03predict.csv')
-        plt.plot(spice.et2datetime(np.array(df_prds['ets'][:])), df_prds['gamma_deg'], c='r')
+        # df_mkrs = pd.read_csv('0427Track03markers.csv')
+        # plt.scatter(spice.et2datetime(np.array(df_mkrs['ets'][:])), df_mkrs['gamma_deg'], c='r', marker='x')
+        # df_prds = pd.read_csv('0427Track03predict.csv')
+        # plt.plot(spice.et2datetime(np.array(df_prds['ets'][:])), df_prds['gamma_deg'], c='r')
+        #
+        # df_mkrs = pd.read_csv('0427Track04markers.csv')
+        # plt.scatter(spice.et2datetime(np.array(df_mkrs['ets'][:])), df_mkrs['gamma_deg'], c='r', marker='x')
+        # df_prds = pd.read_csv('0427Track04predict.csv')
+        # plt.plot(spice.et2datetime(np.array(df_prds['ets'][:])), df_prds['gamma_deg'], c='r')
+        #
+        # df_mkrs = pd.read_csv('0427Track01markers.csv')
+        # plt.scatter(spice.et2datetime(np.array(df_mkrs['ets'][:])), df_mkrs['gamma_deg'], c='r', marker='x',
+        #             label='Manually Marked Markers')
+        # df_prds = pd.read_csv('0427Track01predict.csv')
+        # plt.plot(spice.et2datetime(np.array(df_prds['ets'][:])), df_prds['gamma_deg'], c='r', label='Predicted Traces')
 
-        df_mkrs = pd.read_csv('0427Track04markers.csv')
-        plt.scatter(spice.et2datetime(np.array(df_mkrs['ets'][:])), df_mkrs['gamma_deg'], c='r', marker='x')
-        df_prds = pd.read_csv('0427Track04predict.csv')
-        plt.plot(spice.et2datetime(np.array(df_prds['ets'][:])), df_prds['gamma_deg'], c='r')
-
-        df_mkrs = pd.read_csv('0427Track01markers.csv')
-        plt.scatter(spice.et2datetime(np.array(df_mkrs['ets'][:])), df_mkrs['gamma_deg'], c='r', marker='x',
-                    label='Manually Marked Markers')
-        df_prds = pd.read_csv('0427Track01predict.csv')
-        plt.plot(spice.et2datetime(np.array(df_prds['ets'][:])), df_prds['gamma_deg'], c='r', label='Predicted Traces')
-
-        plt.legend()
+        # plt.legend()
         plt.ylim([14, 50])
 
         plt.show()
@@ -637,7 +664,7 @@ if __name__ == "__main__":
         wispr_times = []
         timemap = np.zeros((len(fnamelist), len(ts))) * np.nan
         carrmap = np.zeros((len(ps), len(ts))) * np.nan
-        d = 8
+        d = 20
         radius_psp = []
         for i, fname in enumerate(fnamelist):
             wispr_time_str = fname[13:28]

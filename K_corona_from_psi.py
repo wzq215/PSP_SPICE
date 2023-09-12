@@ -73,11 +73,11 @@ def gaussian_filter(I_matrix,D_matrix):
     minD = np.nanmin(D_matrix)
     print(maxD)
     print(minD)
-    x = np.linspace(minD,maxD,100)
-    y = 1.5-(np.exp(-(x-minD)**2/(maxD-minD)**2))
-    plt.plot(x,y)
-    plt.show()
-    I_matrix = I_matrix * (1.5-(np.exp(-(D_matrix-minD)**2/((maxD-minD)**2))))
+    x = np.linspace(minD, maxD, 100)
+    y = 1.5 - (np.exp(-(x - minD) ** 2 / (maxD - minD) ** 2))
+    # plt.plot(x,y)
+    # plt.show()
+    I_matrix = I_matrix * (1.5 - (np.exp(-(D_matrix - minD) ** 2 / ((maxD - minD) ** 2))))
     return I_matrix
 
 def get_WL_images(time_str, vignetting='quad', type='full',resolution=0.5):
@@ -226,28 +226,28 @@ def get_WL_images(time_str, vignetting='quad', type='full',resolution=0.5):
         for I, TEC in p.map(partial(get_K_corona, type=type,return_TEC=True), itertools.product(thetas, phis)):
             I_matrix.append(I)
             TEC_matrix.append(TEC)
-        D_matrix = p.map(get_d_sun,itertools.product(thetas, phis))
-        np.savez(path+filename+'.npz', I_matrix,D_matrix,TEC_matrix)
+        D_matrix = p.map(get_d_sun, itertools.product(thetas, phis))
+        np.savez(path + filename + '.npz', I_matrix, D_matrix, TEC_matrix)
 
-    r = np.load(path+filename+'.npz')
+    r = np.load(path + filename + '.npz')
     print(r)
-    I_matrix = r['arr_0'].reshape(len(thetas),len(phis))
-    D_matrix = r['arr_1'].reshape(len(thetas),len(phis))
-    TEC_matrix = r['arr_2'].reshape(len(thetas),len(phis))
+    I_matrix = r['arr_0'].reshape(len(thetas), len(phis))
+    D_matrix = r['arr_1'].reshape(len(thetas), len(phis))
+    TEC_matrix = r['arr_2'].reshape(len(thetas), len(phis))
 
-    plt.scatter(TEC_matrix.reshape(1,-1),I_matrix.reshape(1,-1))
-    plt.xlabel('TEC')
-    plt.ylabel('I')
-    plt.show()
+    # plt.scatter(TEC_matrix.reshape(1,-1),I_matrix.reshape(1,-1))
+    # plt.xlabel('TEC')
+    # plt.ylabel('I')
+    # plt.show()
     if vignetting == 'quad':
-        p=0.01
-        I_matrix = I_matrix * (p+(D_matrix)**2/((np.nanmax(D_matrix))**2)*(1-p))
+        p = 0.01
+        I_matrix = I_matrix * (p + (D_matrix) ** 2 / ((np.nanmax(D_matrix)) ** 2) * (1 - p))
     if vignetting == 'NGRF':
-        I_matrix = NGRF_filter(I_matrix,D_matrix,0.2)
+        I_matrix = NGRF_filter(I_matrix, D_matrix, 0.2)
     if vignetting == 'maxnorm':
-        I_matrix = maxnorm_filter(I_matrix,D_matrix,1)
+        I_matrix = maxnorm_filter(I_matrix, D_matrix, 1)
     if vignetting == 'Gauss':
-        I_matrix = gaussian_filter(I_matrix,D_matrix)
+        I_matrix = gaussian_filter(I_matrix, D_matrix)
 
 
     # print(I_matrix)
@@ -257,7 +257,7 @@ def get_WL_images(time_str, vignetting='quad', type='full',resolution=0.5):
     plt.xlabel('Longitude(deg)')
     plt.ylabel('Latitude(deg)')
     plt.title(filename+'_'+vignetting)
-    plt.savefig(path+filename+'_'+vignetting+'.png')
+    # plt.savefig(path+filename+'_'+vignetting+'.png')
     # plt.clim([5e-12,5e-10])
     # plt.clim([-13.5,-12.5])
     # plt.clim([20,30])

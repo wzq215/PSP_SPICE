@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 import astropy.constants as const
 import astropy.units as u
 import matplotlib.pyplot as plt
-import pyvista
 from matplotlib import colors
 import matplotlib.colors as mcolor
 import numpy as np
@@ -91,37 +90,71 @@ nrho = 35
 rss = 2.5
 pfss_in = pfsspy.Input(gong_map, nrho, rss)
 pfss_out = pfsspy.pfss(pfss_in)
-# %%
-if True:
+
+if False:
     sg_vect = pfss_out.grid.sg
     pg_vect = pfss_out.grid.pg
-    rg_vect = pfss_out.grid.rg[:-1]
+    rg_vect = pfss_out.grid.rg
     sc_vect = pfss_out.grid.sc
     pc_vect = pfss_out.grid.pc
     rc_vect = pfss_out.grid.rc
-    b_arr = pfss_out.bg[:, :, :-1, :]
-
-    [s_arr, p_arr, r_arr] = np.meshgrid(sg_vect, pg_vect, rg_vect)
+    b_arr = pfss_out.bg
+    bc_r = pfss_out.bc[0]
+    # print(pc_vect)
+    # print(np.arccos(sc))
+    [s_arr, p_arr, r_arr] = np.meshgrid(sc_vect, pc_vect, rg_vect)
     x_arr = np.exp(r_arr) * np.cos(p_arr) * np.sqrt(1 - s_arr ** 2)
     y_arr = np.exp(r_arr) * np.sin(p_arr) * np.sqrt(1 - s_arr ** 2)
     z_arr = np.exp(r_arr) * s_arr
-    print(x_arr.shape)
-
-    bx_arr = b_arr[:, :, :, 0] * x_arr + b_arr[:, :, :, 1] * x_arr + b_arr[:, :, :, 2] * x_arr
-    by_arr = b_arr[:, :, :, 0] * y_arr + b_arr[:, :, :, 1] * y_arr + b_arr[:, :, :, 2] * y_arr
-    bz_arr = b_arr[:, :, :, 0] * z_arr + b_arr[:, :, :, 1] * z_arr + b_arr[:, :, :, 2] * z_arr
-
+    # lon_vect = pc_vect * u.rad
+    # lat_vect = np.arccos(sc_vect) * u.rad
+    # r_vect = np.exp(rg_vect)
+    # [lon_grid,lat_grid] = np.meshgrid(lon_vect,lat_vect)
+    # coord_grid = SkyCoord(x_arr.ravel()*const.R_sun, y_arr.ravel()*const.R_sun, z_arr.ravel()*const.R_sun,frame=pfss_out.coordinate_frame,representation_type='cartesian')
+    # x_arr = coord_grid.x.to_value(const.R_sun)
+    # y_arr = coord_grid.y.to_value(const.R_sun)
+    # z_arr = coord_grid.z.to_value(const.R_sun)
+    # x_arr = np.array(x_arr).reshape(360,180,36)
+    # y_arr = np.array(y_arr).reshape(360,180,36)
+    # z_arr = np.array(z_arr).reshape(360,180,36)
+    # bc = pfss_out.get_bvec(coord_grid)
+    # bc_r_interp = np.array(bc[:,0]).reshape(360,180,36)
+    # [x_arr,y_arr,z_arr] = np.meshgrid(x_vect,y_vect,z_vect)
     mesh_g = pv.StructuredGrid(x_arr, y_arr, z_arr)
-    mesh_g.point_data['values'] = b_arr[:, :, :, 0].ravel(order='F')
+    mesh_g.point_data['values'] = bc_r.ravel(order='F')
     isos_b0 = mesh_g.contour(isosurfaces=1, rng=[0, 0])
 
-    vectors = np.empty((mesh_g.n_points, 3))
-    vectors[:, 0] = bx_arr.ravel(order='F')
-    vectors[:, 1] = by_arr.ravel(order='F')
-    vectors[:, 2] = bz_arr.ravel(order='F')
-    mesh_g['vectors'] = vectors
-    field_lines, src = mesh_g.streamlines('vectors', return_source=True, source_radius=1.2, n_points=500,
-                                          progress_bar=True, max_time=1000., max_error=1e-20)
+    tracer = tracing.FortranTracer()
+    # r = 1.2 * const.R_sun
+    # lat_2 = np.deg2rad(np.linspace(55, 60, 5, endpoint=False))
+    # lon_2 = np.deg2rad(np.linspace(115, 145, 30, endpoint=False))
+    # lat_2, lon_2 = np.meshgrid(lat_2, lon_2, indexing='ij')
+    # lat_2, lon_2 = lat_2.ravel() * u.rad, lon_2.ravel() * u.rad
+    # lat_1 = np.deg2rad(np.linspace(-40, -30, 10, endpoint=False))
+    # lon_1 = np.deg2rad(np.linspace(60, 90, 30, endpoint=False))
+    # lat_1, lon_1 = np.meshgrid(lat_1, lon_1, indexing='ij')
+    # lat_1, lon_1 = lat_1.ravel() * u.rad, lon_1.ravel() * u.rad
+    # lat = np.append(lat_1,lat_2)
+    # lon = np.append(lon_1,lon_2)
+
+    lat = np.deg2rad(np.linspace(-90, 90, 9, endpoint=False))
+    lon = np.deg2rad(np.linspace(0, 360, 18, endpoint=False))
+    lat, lon = np.meshgrid(lat, lon, indexing='ij')
+    lat, lon = lat.ravel() * u.rad, lon.ravel() * u.rad
+    # df_trace['lon_footpoint_on_SourceSurface_deg']
+    # seeds = SkyCoord(df_trace['lon_footpoint_on_SourceSurface_deg'] * u.deg,
+    #                  df_trace['lat_footpoint_on_SourceSurface_deg'] * u.deg, rss * const.R_sun,
+    #                  frame=pfss_out.coordinate_frame)
+    seeds = SkyCoord(lon, lat, rss * const.R_sun,
+                     frame=pfss_out.coordinate_frame)
+    # print(seeds)
+    field_lines = tracer.trace(seeds, pfss_out)
+
+    plotter = SunpyPlotter()
+
+    # plotter.plot_map(gong_map,assume_spherical_screen=False,cmap='Accent')
+    # plotter.plot_map(sta_map,clip_interval=(0.2, 99.) * u.percent,assume_spherical_screen=False)
+    plotter.plot_solar_axis()
 
 
     def my_fline_color_func(field_line):
@@ -130,14 +163,17 @@ if True:
         return cmap(norm(np.abs(field_line.expansion_factor)))
 
 
-    p = pv.Plotter()
-    p.add_mesh(field_lines.tube(radius=0.01), color='white')
-    p.add_mesh(pv.Sphere(radius=1))
-    p.add_mesh(isos_b0, opacity=0.6)
-    p.show()
+    # bottom_left = SkyCoord(110 * u.deg, 50 * u.deg, frame=pfss_out.coordinate_frame, )
+    # plotter.plot_quadrangle(bottom_left=bottom_left, width=30 * u.deg, height=30 * u.deg, color="blue")
+    # bottom_left = SkyCoord(60 * u.deg, -60 * u.deg, frame=pfss_out.coordinate_frame, )
+    # plotter.plot_quadrangle(bottom_left=bottom_left, width=30 * u.deg, height=30 * u.deg, color="blue")
+    plotter.plot_field_lines(field_lines, color_func=my_fline_color_func)
+    plotter.plotter.add_mesh(pv.Sphere(radius=1))
+    plotter.plotter.add_mesh(isos_b0, opacity=0.6)
+    # plotter.plot_coordinates()
+    plotter.show()
 
     quit()
-# %%
 
 # vertices2 = isos_b0.points
 # triangles2 = isos_b0.faces.reshape(-1, 4)
@@ -188,34 +224,34 @@ if True:
 # plot.update_layout(showlegend=False,)
 # py.plot(plot, filename='HCS_pfss.html')
 #
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
-tracer = tracing.FortranTracer()
-r = 1.2 * const.R_sun
-lat = np.deg2rad(np.linspace(50, 65, 3, endpoint=False))
-lon = np.deg2rad(np.linspace(100, 150, 10, endpoint=False))
-lat = np.deg2rad(np.linspace(-60, -30, 6, endpoint=False))
-lon = np.deg2rad(np.linspace(60, 90, 6, endpoint=False))
-lat, lon = np.meshgrid(lat, lon, indexing='ij')
-lat, lon = lat.ravel() * u.rad, lon.ravel() * u.rad
-
-seeds = SkyCoord(lon, lat, r, frame=pfss_out.coordinate_frame)
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
 #
-field_lines = tracer.trace(seeds, pfss_out)
-
-for field_line in field_lines:
-    color = {0: 'black', -1: 'tab:blue', 1: 'tab:red'}.get(field_line.polarity)
-    coords = field_line.coords
-    coords.representation_type = 'spherical'
-    # print(coords)
-    ax.plot(coords.lon,
-            coords.lat,
-            coords.radius / const.R_sun,
-            color=color, linewidth=1)
-
-ax.set_title('PFSS solution')
-plt.show()
+# tracer = tracing.FortranTracer()
+# r = 1.2 * const.R_sun
+# lat = np.deg2rad(np.linspace(50, 65, 3, endpoint=False))
+# lon = np.deg2rad(np.linspace(100, 150, 10, endpoint=False))
+# lat = np.deg2rad(np.linspace(-60, -30, 6, endpoint=False))
+# lon = np.deg2rad(np.linspace(60, 90, 6, endpoint=False))
+# lat, lon = np.meshgrid(lat, lon, indexing='ij')
+# lat, lon = lat.ravel() * u.rad, lon.ravel() * u.rad
+#
+# seeds = SkyCoord(lon, lat, r, frame=pfss_out.coordinate_frame)
+#
+# field_lines = tracer.trace(seeds, pfss_out)
+#
+# for field_line in field_lines:
+#     color = {0: 'black', -1: 'tab:blue', 1: 'tab:red'}.get(field_line.polarity)
+#     coords = field_line.coords
+#     coords.representation_type = 'spherical'
+#     # print(coords)
+#     ax.plot(coords.lon,
+#             coords.lat,
+#             coords.radius / const.R_sun,
+#             color=color, linewidth=1)
+#
+# ax.set_title('PFSS solution')
+# plt.show()
 
 #
 fig = plt.figure()

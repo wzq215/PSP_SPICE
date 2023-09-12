@@ -7,7 +7,7 @@ import plotly.offline as py
 import pyvista
 import spiceypy as spice
 from ps_read_hdf_3d import ps_read_hdf_3d
-
+# from  import
 from plot_body_positions import xyz2rtp_in_Carrington
 
 Rs = 696300  # km
@@ -58,8 +58,8 @@ def parker_spiral(r_vect_au, lat_beg_deg, lon_beg_deg, Vsw_r_vect_kmps):
 # ========Data Preparation=======
 
 # set time range for PSP orbit
-start_time = '2021-04-28'
-stop_time = '2021-05-01'
+start_time = '2020-01-20'
+stop_time = '2020-02-01'
 start_dt = datetime.strptime(start_time, '%Y-%m-%d')
 stop_dt = datetime.strptime(stop_time, '%Y-%m-%d')
 utc = [start_dt.strftime('%b %d, %Y'), stop_dt.strftime('%b %d, %Y')]
@@ -69,23 +69,23 @@ etTwo = spice.str2et(utc[1])
 step = 100
 times = [x * (etTwo - etOne) / step + etOne for x in range(step)]
 
-psp_utc_str = '20181104T000000'
+# psp_utc_str = '20181104T000000'
 
 # convert psp_pos to carrington coordination system
-et = spice.datetime2et(datetime.strptime(psp_utc_str, '%Y%m%dT%H%M%S'))
-subpnt_psp = spice.subpnt('INTERCEPT/ELLIPSOID', 'SUN', et, 'IAU_SUN', 'None', 'SPP')
-subpnt_lat = np.rad2deg(spice.reclat(subpnt_psp[0])[1:])
-if subpnt_lat[0] < 0:
-    subpnt_lat[0] = subpnt_lat[0] + 360
-subpnt_lat[1] = 90 - subpnt_lat[1]
-psp_r = np.linalg.norm(subpnt_psp[0] - subpnt_psp[2], 2) / Rs
-print('-------PSP-------')
-print(psp_r)
-print(subpnt_lat[0])
-print(subpnt_lat[1])
+# et = spice.datetime2et(datetime.strptime(psp_utc_str, '%Y%m%dT%H%M%S'))
+# subpnt_psp = spice.subpnt('INTERCEPT/ELLIPSOID', 'SUN', et, 'IAU_SUN', 'None', 'SPP')
+# subpnt_lat = np.rad2deg(spice.reclat(subpnt_psp[0])[1:])
+# if subpnt_lat[0] < 0:
+#     subpnt_lat[0] = subpnt_lat[0] + 360
+# subpnt_lat[1] = 90 - subpnt_lat[1]
+# psp_r = np.linalg.norm(subpnt_psp[0] - subpnt_psp[2], 2) / Rs
+# print('-------PSP-------')
+# print(psp_r)
+# print(subpnt_lat[0])
+# print(subpnt_lat[1])
 
 # Load Psi Data
-data_br = ps_read_hdf_3d(2243, 'helio', 'br002', periodicDim=3)
+data_br = ps_read_hdf_3d(2226, 'helio', 'br002', periodicDim=3)
 # data_br = h5py.File('simulation/20210117T131000/corona_h5/br002.h5')
 r_br = np.array(data_br['scales1'])  # 201 in Rs, distance from sun
 t_br = np.array(data_br['scales2'])  # 150 in rad, latitude
@@ -93,7 +93,7 @@ p_br = np.array(data_br['scales3'])  # 256 in rad, Carrington longitude
 br = np.array(data_br['datas'])  # 1CU = 2.205G = 2.205e-4T = 2.205e5nT
 br = br * 2.205e5  # nT
 # print(t_br)
-data_rho = ps_read_hdf_3d(2243, 'helio', 'rho002',
+data_rho = ps_read_hdf_3d(2226, 'helio', 'rho002',
                           periodicDim=3)  # h5py.File('simulation/20210117T131000/corona_h5/rho002.h5')
 r_rho = np.array(data_rho['scales1'])  # 201 in Rs, distance from sun
 t_rho = np.array(data_rho['scales2'])  # 150 in rad, latitude
@@ -101,17 +101,17 @@ p_rho = np.array(data_rho['scales3'])  # 256 in rad, Carrington longitude
 rho = np.array(data_rho['datas'])
 rho = rho * 1e8  # cm^-3
 # print(t_rho)
-data_vr = ps_read_hdf_3d(2243, 'helio', 'vr002', periodicDim=3)
+data_vr = ps_read_hdf_3d(2226, 'helio', 'vr002', periodicDim=3)
 r_vr = np.array(data_vr['scales1'])  # 201 in Rs, distance from sun
 t_vr = np.array(data_vr['scales2'])  # 150 in rad, latitude
 p_vr = np.array(data_vr['scales3'])  # 256 in rad, Carrington longitude
 vr = np.array(data_vr['datas'])
 vr = vr * 481.3711  # km/s
 
-# Find indexs for PSP in PSI dataset
-p_index = abs(np.rad2deg(p_br) - subpnt_lat[0]).argmin()
-t_index = abs(np.rad2deg(t_br) - subpnt_lat[1]).argmin()
-r_index = abs(r_vr - psp_r).argmin()
+# # Find indexs for PSP in PSI dataset
+# p_index = abs(np.rad2deg(p_br) - subpnt_lat[0]).argmin()
+# t_index = abs(np.rad2deg(t_br) - subpnt_lat[1]).argmin()
+# r_index = abs(r_vr - psp_r).argmin()
 
 # get HCS (isosurface of Br=0)
 tv, pv, rv = np.meshgrid(t_br, p_br, r_br, indexing='xy')
@@ -202,15 +202,15 @@ triangles2 = isos_rho.faces.reshape(-1, 4)
 #                          showscale=False,
 #                          ))
 
-tv, pv, rv = np.meshgrid(t_vr, p_vr, r_vr, indexing='xy')
-rv = rv[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
-pv = pv[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
-tv = tv[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
-
-vr_plot = vr[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
-xv = rv * np.cos(pv) * np.sin(tv)
-yv = rv * np.sin(pv) * np.sin(tv)
-zv = rv * np.cos(tv)
+# tv, pv, rv = np.meshgrid(t_vr, p_vr, r_vr, indexing='xy')
+# rv = rv[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
+# pv = pv[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
+# tv = tv[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
+#
+# vr_plot = vr[p_index - 10:p_index + 10, t_index - 20:t_index + 20, :]
+# xv = rv * np.cos(pv) * np.sin(tv)
+# yv = rv * np.sin(pv) * np.sin(tv)
+# zv = rv * np.cos(tv)
 
 psp_pos, _ = spice.spkpos('SPP', times, 'IAU_SUN', 'NONE', 'SUN')  # km
 psp_pos = psp_pos.T / Rs
@@ -262,30 +262,30 @@ plot.add_trace(go.Scatter3d(x=psp_pos['x'], y=psp_pos['y'], z=psp_pos['z'],
                             ))
 # obs_cross = spice.datetime2et(datetime.strptime('20210426T070000', '%Y%m%dT%H%M%S'))
 # simu_cross = spice.datetime2et(datetime.strptime('20210428T220000','%Y%m%dT%H%M%S'))
-
-marker_dts = [datetime(2021, 4, 24, 0, 0, 0), datetime(2021, 4, 24, 12, 0, 0), datetime(2021, 4, 25, 0, 0, 0),
-              datetime(2021, 4, 25, 12, 0, 0),
-              datetime(2021, 4, 26, 0, 0, 0), datetime(2021, 4, 26, 12, 0, 0), datetime(2021, 4, 27, 0, 0, 0),
-              datetime(2021, 4, 27, 12, 0, 0),
-              datetime(2021, 4, 28, 0, 0, 0), datetime(2021, 4, 28, 12, 0, 0), datetime(2021, 4, 29, 0, 0, 0),
-              datetime(2021, 4, 29, 12, 0, 0),
-              datetime(2021, 4, 30, 0, 0, 0), datetime(2021, 4, 30, 12, 0, 0), datetime(2021, 5, 1, 0, 0, 0),
-              datetime(2021, 5, 1, 12, 0, 0),
-              datetime(2021, 5, 2, 0, 0, 0), datetime(2021, 5, 2, 12, 0, 0), datetime(2021, 5, 3, 0, 0, 0),
-              datetime(2021, 5, 3, 12, 0, 0),
-              datetime(2021, 5, 4, 0, 0, 0), datetime(2021, 5, 4, 12, 0, 0), datetime(2021, 5, 5, 0, 0, 0),
-              datetime(2021, 5, 5, 12, 0, 0),
-              datetime(2021, 5, 6, 0, 0, 0), datetime(2021, 5, 6, 12, 0, 0)]
-marker_dts = [datetime(2021, 4, 22, 0, 0, 0), datetime(2021, 4, 23, 0, 0, 0),
-              datetime(2021, 4, 24, 0, 0, 0), datetime(2021, 4, 25, 0, 0, 0),
-              datetime(2021, 4, 26, 0, 0, 0), datetime(2021, 4, 27, 0, 0, 0),
-              datetime(2021, 4, 28, 0, 0, 0), datetime(2021, 4, 29, 0, 0, 0),
-              datetime(2021, 4, 30, 0, 0, 0), datetime(2021, 5, 1, 0, 0, 0),
-              datetime(2021, 5, 2, 0, 0, 0), datetime(2021, 5, 3, 0, 0, 0),
-              datetime(2021, 5, 4, 0, 0, 0), datetime(2021, 5, 5, 0, 0, 0), ]
-marker_dts = [datetime(2021, 4, 28, 0, 0, 0), datetime(2021, 4, 29, 0, 0, 0),
-              datetime(2021, 4, 30, 0, 0, 0), datetime(2021, 5, 1, 0, 0, 0), ]
-marker_dts = [datetime(2021, 4, 28, 15, 20), datetime(2021, 4, 29, 13, 40), datetime(2021, 4, 30, 4, 30)]
+marker_dts = []
+# marker_dts = [datetime(2021, 4, 24, 0, 0, 0), datetime(2021, 4, 24, 12, 0, 0), datetime(2021, 4, 25, 0, 0, 0),
+#               datetime(2021, 4, 25, 12, 0, 0),
+#               datetime(2021, 4, 26, 0, 0, 0), datetime(2021, 4, 26, 12, 0, 0), datetime(2021, 4, 27, 0, 0, 0),
+#               datetime(2021, 4, 27, 12, 0, 0),
+#               datetime(2021, 4, 28, 0, 0, 0), datetime(2021, 4, 28, 12, 0, 0), datetime(2021, 4, 29, 0, 0, 0),
+#               datetime(2021, 4, 29, 12, 0, 0),
+#               datetime(2021, 4, 30, 0, 0, 0), datetime(2021, 4, 30, 12, 0, 0), datetime(2021, 5, 1, 0, 0, 0),
+#               datetime(2021, 5, 1, 12, 0, 0),
+#               datetime(2021, 5, 2, 0, 0, 0), datetime(2021, 5, 2, 12, 0, 0), datetime(2021, 5, 3, 0, 0, 0),
+#               datetime(2021, 5, 3, 12, 0, 0),
+#               datetime(2021, 5, 4, 0, 0, 0), datetime(2021, 5, 4, 12, 0, 0), datetime(2021, 5, 5, 0, 0, 0),
+#               datetime(2021, 5, 5, 12, 0, 0),
+#               datetime(2021, 5, 6, 0, 0, 0), datetime(2021, 5, 6, 12, 0, 0)]
+# marker_dts = [datetime(2021, 4, 22, 0, 0, 0), datetime(2021, 4, 23, 0, 0, 0),
+#               datetime(2021, 4, 24, 0, 0, 0), datetime(2021, 4, 25, 0, 0, 0),
+#               datetime(2021, 4, 26, 0, 0, 0), datetime(2021, 4, 27, 0, 0, 0),
+#               datetime(2021, 4, 28, 0, 0, 0), datetime(2021, 4, 29, 0, 0, 0),
+#               datetime(2021, 4, 30, 0, 0, 0), datetime(2021, 5, 1, 0, 0, 0),
+#               datetime(2021, 5, 2, 0, 0, 0), datetime(2021, 5, 3, 0, 0, 0),
+#               datetime(2021, 5, 4, 0, 0, 0), datetime(2021, 5, 5, 0, 0, 0), ]
+# marker_dts = [datetime(2021, 4, 28, 0, 0, 0), datetime(2021, 4, 29, 0, 0, 0),
+#               datetime(2021, 4, 30, 0, 0, 0), datetime(2021, 5, 1, 0, 0, 0), ]
+# marker_dts = [datetime(2021, 4, 28, 15, 20), datetime(2021, 4, 29, 13, 40), datetime(2021, 4, 30, 4, 30)]
 # marker_dts=[datetime(2018,10,24,0,0,0),datetime(2018,10,25,0,0,0),datetime(2018,10,26,0,0,0),datetime(2018,10,27,0,0,0),
 #             datetime(2018,10,28,0,0,0),datetime(2018,10,29,0,0,0),datetime(2018,10,30,0,0,0),datetime(2018,10,31,0,0,0),
 #             datetime(2018,11,1,0,0,0),datetime(2018,11,2,0,0,0),datetime(2018,11,3,0,0,0),datetime(2018,11,4,0,0,0),
@@ -332,14 +332,14 @@ for i in range(len(marker_ets)):
     print('----------')
 # psp_obs_cross = {'x': psp_obs_cross[0], 'y': psp_obs_cross[1], 'z': psp_obs_cross[2]}
 # psp_obs_cross = pd.DataFrame(data=psp_obs_cross)
-plot.add_trace(go.Scatter3d(x=np.array(psp_obs_cross[0]), y=np.array(psp_obs_cross[1]), z=np.array(psp_obs_cross[2]),
-                            mode='markers+text',
-                            marker=dict(size=3,
-                                        color='white',
-                                        symbol='diamond'),
-                            text=marker_txts, textfont=dict(size=10, color='white'),
-                            # name='Orbit of PSP (' + start_time + '~' + stop_time + ')',
-                            ))
+# plot.add_trace(go.Scatter3d(x=np.array(psp_obs_cross[0]), y=np.array(psp_obs_cross[1]), z=np.array(psp_obs_cross[2]),
+#                             mode='markers+text',
+#                             marker=dict(size=3,
+#                                         color='white',
+#                                         symbol='diamond'),
+#                             text=marker_txts, textfont=dict(size=10, color='white'),
+#                             # name='Orbit of PSP (' + start_time + '~' + stop_time + ')',
+#                             ))
 
 # put_psp_stl_pos = psp_obs_cross[:,11]
 # print(put_psp_stl_pos)

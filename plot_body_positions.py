@@ -10,14 +10,21 @@ Versions:
     21/03/22 file rearranged by Ziqu Wu.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import matplotlib.pyplot as plt
 import numpy as np
 import spiceypy as spice
+import pandas as pd
+from matplotlib import gridspec
 
 from horizons_spk import get_spk_from_horizons
+from scipy import interpolate
+import furnsh_kernels
+# from load_psp_data import load_spi_data
+from datetime import timedelta
 
+spice.furnsh('kernels/spp_nom_20180812_20250831_v039_RO6.bsp')
 AU = 1.49e8  # km
 Rs = 6.96e5  # km
 
@@ -122,22 +129,14 @@ def get_body_pos(body, start_time, stop_time, observer='SUN BARYCENTER', frame='
 def plot_psp_sun_carrington(start_time_str, stop_time_str):
     print(datetime.strptime(start_time_str, '%Y%m%dT%H%M%S'))
     print(datetime.strptime(stop_time_str, '%Y%m%dT%H%M%S'))
-    # start_et = spice.datetime2et(datetime.strptime(start_time_str, '%Y%m%dT%H%M%S'))
-    # stop_et = spice.datetime2et(datetime.strptime(stop_time_str, '%Y%m%dT%H%M%S'))
-    #
-    # step = 100
-    # times = [x * (stop_et - start_et) / step + start_et for x in range(step)]
 
     start_time = datetime.strptime(start_time_str, '%Y%m%dT%H%M%S')
     stop_time = datetime.strptime(stop_time_str, '%Y%m%dT%H%M%S')
-    # start_et = spice.datetime2et(start_time)
-    # stop_et = spice.datetime2et(stop_time)
-    # start_time_str = start_time.strftime('%Y%m%dT%H%M%S')
-    # stop_time_str = stop_time.strftime('%Y%m%dT%H%M%S')
-    from datetime import timedelta
+
     timestep = timedelta(hours=1)
     steps = (stop_time - start_time) // timestep + 1
     dttimes = np.array([x * timestep + start_time for x in range(steps)])
+    dttimes_str = [dt.strftime('%m%d') for dt in dttimes[0:-1:24]]
     print(dttimes[0:-1:24])
     times = spice.datetime2et(dttimes)
 
@@ -152,68 +151,71 @@ def plot_psp_sun_carrington(start_time_str, stop_time_str):
     print('End Point:', psp_pos_carr_rtp[0][-1], np.rad2deg(psp_pos_carr_rtp[1][-1]),
           np.rad2deg(psp_pos_carr_rtp[2][-1]))
 
-    fig = plt.figure(figsize=(9, 9))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot(psp_pos_carr[0], psp_pos_carr[1], psp_pos_carr[2], c='blue')
-    ax.scatter(0, 0, 0, c='red')
-    ax.scatter(psp_pos_carr[0, -1], psp_pos_carr[1, -1], psp_pos_carr[2, -1], c='blue')
+    # fig = plt.figure(figsize=(9, 9))
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.plot(psp_pos_carr[0], psp_pos_carr[1], psp_pos_carr[2], c='blue')
+    # ax.scatter(0, 0, 0, c='red')
+    # ax.scatter(psp_pos_carr[0, -1], psp_pos_carr[1, -1], psp_pos_carr[2, -1], c='blue')
+    #
+    # ax.plot([0, psp_pos_carr[0][0]], [0, psp_pos_carr[1][0]], [0, psp_pos_carr[2][0]], c='yellow')
+    #
+    # ax.set_xlim([-75, 75])
+    # ax.set_ylim([-75, 75])
+    # ax.set_zlim([-75, 75])
+    # plt.title('PSP orbit (' + start_time_str + '-' + stop_time_str + '), Carrington')
+    # ax.set_xlabel('x in Carrington (Rs)')
+    # ax.set_ylabel('y in Carrington (Rs)')
+    # ax.set_zlabel('z in Carrington (Rs)')
+    # plt.show()
 
-    ax.plot([0, psp_pos_carr[0][0]], [0, psp_pos_carr[1][0]], [0, psp_pos_carr[2][0]], c='yellow')
-
-    ax.set_xlim([-75, 75])
-    ax.set_ylim([-75, 75])
-    ax.set_zlim([-75, 75])
-    plt.title('PSP orbit (' + start_time_str + '-' + stop_time_str + '), Carrington')
-    ax.set_xlabel('x in Carrington (Rs)')
-    ax.set_ylabel('y in Carrington (Rs)')
-    ax.set_zlabel('z in Carrington (Rs)')
-    plt.show()
+    # plt.figure()
+    # plt.scatter(np.rad2deg(psp_pos_carr_rtp[1]), np.rad2deg(psp_pos_carr_rtp[2]), c=psp_pos_carr_rtp[0])
+    # plt.colorbar(label='Radial Distance')
+    # plt.clim([20, 60])
+    # plt.scatter(np.rad2deg(psp_pos_carr_rtp[1, -1]), np.rad2deg(psp_pos_carr_rtp[2, -1]), c='black')
+    # plt.xlabel('Carrington Longitude')
+    # plt.ylabel('Carrington Latitude')
+    # plt.title('PSP Orbit in HG')
+    # plt.show()
 
     plt.figure()
-    plt.scatter(np.rad2deg(psp_pos_carr_rtp[1]), np.rad2deg(psp_pos_carr_rtp[2]), c=psp_pos_carr_rtp[0])
-    plt.colorbar(label='Radial Distance')
-    plt.clim([20, 60])
-    plt.scatter(np.rad2deg(psp_pos_carr_rtp[1, -1]), np.rad2deg(psp_pos_carr_rtp[2, -1]), c='black')
-    plt.xlabel('Carrington Longitude')
-    plt.ylabel('Carrington Latitude')
-    plt.title('PSP Orbit in HG')
-    plt.show()
 
-    plt.figure()
-    ax = plt.subplot(111, projection='polar')
+    ax = plt.subplot(121, projection='polar')
     ax.plot(psp_pos_carr_rtp[1], psp_pos_carr_rtp[0], 'k-')
     ax.scatter(psp_pos_carr_rtp[1, 0:-1:24], psp_pos_carr_rtp[0, 0:-1:24], marker='x', c='black')
+    for i in range(len(dttimes_str)):
+        print(dttimes_str[i])
+        ax.annotate(dttimes_str[i], (psp_pos_carr_rtp[1, 0:-1:24][i], psp_pos_carr_rtp[0, 0:-1:24][i]))
     ax.scatter(0, 0, c='red', s=100)
     ax.set_axisbelow('True')
     ax.set_thetagrids(np.arange(0.0, 360.0, 15.0))
-    ax.set_thetamin(0.0)  # 设置极坐标图开始角度为0°
-    ax.set_thetamax(180.0)  # 设置极坐标结束角度为180°
+    # ax.set_thetamin(30.0)  # 设置极坐标图开始角度为0°
+    # ax.set_thetamax(210.0)  # 设置极坐标结束角度为180°
     # ax.set_rmax(2)
     # ax.set_rticks([0.5, 1, 1.5, 2])  # Less radial ticks
     ax.set_xlabel('Radius [Rs]')
     ax.set_ylabel('Carrington Longitude [deg]')
     ax.set_rlabel_position(0)  # Move radial labels away from plotted line
     ax.grid(True)
-    plt.show()
+    # plt.show()
 
-    plt.figure()
-    plt.subplot(2, 1, 1)
+    # plt.figure()
+    plt.subplot(2, 2, 2)
+    # psp_pos_carr_rtp[1][psp_pos_carr_rtp[1]>np.deg2rad(300)] -= 2*np.pi
     plt.plot(spice.et2datetime(times), np.rad2deg(psp_pos_carr_rtp[1]))
-    # plt.title('Carrington Longitude of PSP')
     plt.xlabel('Observation Time')
     plt.ylabel('Carrington Longitude [deg]')
-    plt.subplot(2, 1, 2)
+    plt.subplot(2, 2, 4)
     plt.plot(spice.et2datetime(times), psp_pos_carr_rtp[0])
-    # plt.title('Solar Radius of PSP')
     plt.xlabel('Observation Time')
     plt.ylabel('Solar Radius [Rs]')
-
+    plt.savefig('SAVED.png')
     plt.show()
+
+
 
 
 def psp_backmap(epoch, r_source_surface_rs=2.5):
-    from load_psp_data import load_spi_data
-    from datetime import timedelta
     pmom_SPI = load_spi_data(epoch[0].strftime('%Y%m%d'), epoch[-1].strftime('%Y%m%d'))
     epochpmom = pmom_SPI['Epoch']
     timebinpmom = (epochpmom > epoch[0]) & (epochpmom < epoch[-1])
@@ -226,8 +228,6 @@ def psp_backmap(epoch, r_source_surface_rs=2.5):
     dir_data_PFSS = '/Users/ephe/PFSS_data/'
 
     # Vsw_r_interp = np.interp(np.array((epoch-epochpmom[0])/timedelta(days=1),dtype='float64'),np.array((epochpmom-epochpmom[0])/timedelta(days=1),dtype='float64'),vp_r)
-
-    from scipy import interpolate
 
     f = interpolate.interp1d(np.array((epochpmom - epochpmom[0]) / timedelta(days=1), dtype='float64'), vp_r,
                              kind='previous', fill_value='extrapolate')
@@ -285,7 +285,7 @@ def plot_psp_sun_hci(start_time_str, stop_time_str, step=100):
     # step = 100
     times = [x * (stop_et - start_et) / step + start_et for x in range(step)]
 
-    psp_pos_hci, _ = spice.spkpos('SPP', times, 'SPP_HCI', 'NONE', 'SUN')
+    psp_pos_hci, _ = spice.spkpos('PSP', times, 'SPP_HCI', 'NONE', 'SUN')
     psp_pos_hci = psp_pos_hci.T / Rs
     sun_pos_hci, _ = spice.spkpos('SUN', times, 'SPP_HCI', 'NONE', 'SUN')
 
@@ -297,26 +297,26 @@ def plot_psp_sun_hci(start_time_str, stop_time_str, step=100):
 
     ax.plot([0, psp_pos_hci[0][0]], [0, psp_pos_hci[1][0]], [0, psp_pos_hci[2][0]], c='yellow')
 
-    ax.set_xlim([-75, 75])
-    ax.set_ylim([-75, 75])
-    ax.set_zlim([-75, 75])
-    plt.title('PSP orbit (' + start_time_str + '-' + stop_time_str + '), Carrington')
-    ax.set_xlabel('x in Carrington (Rs)')
-    ax.set_ylabel('y in Carrington (Rs)')
-    ax.set_zlabel('z in Carrington (Rs)')
+    ax.set_xlim([-200, 200])
+    ax.set_ylim([-200, 200])
+    ax.set_zlim([-200, 200])
+    plt.title('PSP orbit (' + start_time_str + '-' + stop_time_str + '), HCI')
+    ax.set_xlabel('x in HCI (Rs)')
+    ax.set_ylabel('y in HCI (Rs)')
+    ax.set_zlabel('z in HCI (Rs)')
     plt.show()
 
     plt.figure()
     plt.plot(psp_pos_hci[0], psp_pos_hci[1], 'k-')
     plt.scatter(sun_pos_hci[0], sun_pos_hci[1], c='r')
-    plt.xlim([-75, 75])
-    plt.ylim([-75, 75])
+    plt.xlim([-200, 200])
+    plt.ylim([-200, 200])
     plt.xlabel('x(Rs) in HCI')
     plt.ylabel('y(Rs) in HCI')
     plt.show()
 
 
-def get_rlonlat_psp_carr(dt_times, for_psi=True):
+def get_rlonlat_psp_carr(dt_times, for_psi=False):
     r_psp_carr = []
     lon_psp_carr = []
     lat_psp_carr = []
@@ -340,26 +340,187 @@ def get_rlonlat_psp_carr(dt_times, for_psi=True):
     return np.array(r_psp_carr), np.array(lon_psp_carr), np.array(lat_psp_carr)
 
 
-if __name__ == '__main__':
-    xyz_carrington = np.array([1, 0, -1])
-    r, lon, lat = xyz2rtp_in_Carrington(xyz_carrington)
-    print('input XYZ', xyz_carrington)
-    print('radius in Carr', r)
-    print('Longitude in Carr', np.rad2deg(lon))
-    print('Latitude in Carr', np.rad2deg(lat))
-    # plot_psp_sun_carrington('20210422T000000','20210505T000000')
-    plot_psp_sun_hci('20210422T000000', '20210505T000000')
-    exit()
-    datetime_beg = datetime(2021, 4, 28, 15, 30, 0)
-    datetime_end = datetime(2021, 4, 30, 4, 30, 0)
-    from datetime import timedelta
+def get_rlonlat_solo_carr(dt_times, for_psi=False):
+    r_solo_carr = []
+    lon_solo_carr = []
+    lat_solo_carr = []
+    for dt in dt_times:
+        et = spice.datetime2et(dt)
+        solo_pos, _ = spice.spkpos('SOLO', et, 'IAU_SUN', 'NONE', 'SUN')  # km
+        solo_pos = solo_pos.T / Rs
 
-    timestep = timedelta(minutes=30)
+        r_solo, p_solo, t_solo = xyz2rtp_in_Carrington(solo_pos, for_psi=for_psi)
+        r_solo_carr.append(r_solo)
+        lon_solo_carr.append(p_solo)
+        lat_solo_carr.append(t_solo)
+    return np.array(r_solo_carr), np.array(lon_solo_carr), np.array(lat_solo_carr)
+
+
+def get_rlonlat_earth_carr(dt_times, for_psi=False):
+    r_earth_carr = []
+    lon_earth_carr = []
+    lat_earth_carr = []
+    for dt in dt_times:
+        et = spice.datetime2et(dt)
+        earth_pos, _ = spice.spkpos('EARTH', et, 'IAU_SUN', 'NONE', 'SUN')  # km
+        earth_pos = earth_pos.T / Rs
+
+        r_earth, p_earth, t_earth = xyz2rtp_in_Carrington(earth_pos, for_psi=for_psi)
+        r_earth_carr.append(r_earth)
+        lon_earth_carr.append(p_earth)
+        lat_earth_carr.append(t_earth)
+    return np.array(r_earth_carr), np.array(lon_earth_carr), np.array(lat_earth_carr)
+
+
+def write_trajectory_file_for_SWMF(dt_beg, dt_end, dt_resolution, target='PSP', coord='HGR', norm_unit='Rs'):
+    dts = [dt_beg + n * dt_resolution for n in range((dt_end - dt_beg) // dt_resolution)]
+    ets = spice.datetime2et(dts)
+    if coord == 'HGR':
+        coord_spice = 'SPP_HG'
+        print('Using ' + coord + ' for SWMF, aka ' + coord_spice + ' for SPICE...')
+    if target == 'PSP':
+        target = 'SPP'
+        print('Target is ' + target + '...')
+    psp_pos, _ = spice.spkpos(target, ets, coord_spice, 'NONE', 'SUN')
+    if norm_unit == 'Rs':
+        print('Normalize to ' + norm_unit + '...')
+    psp_pos = psp_pos.T / Rs
+    dt_beg_str = dt_beg.strftime('%Y%m%dT%H%M%S')
+    dt_end_str = dt_end.strftime('%Y%m%dT%H%M%S')
+    filepath = '/Users/ephe/THL8/traj_data/'
+    filename = target + '_(' + coord + ')_(' + dt_beg_str + '-' + dt_end_str + ').dat'
+    with open(filepath + filename, 'w') as f:
+        print('Writing the trajectory of ' + target + ' from ' + dt_beg_str + ' to ' + dt_end_str + ' to File:')
+        print(filepath + filename)
+        f.write('#COOR\n')
+        f.write(coord + '\n')
+        f.write('\n')
+        f.write('#START\n')
+        for i in range(len(dts)):
+            dt_tmp = dts[i]
+            f.write(str(dt_tmp.year) + '\t' + str(dt_tmp.month) + '\t' + str(dt_tmp.day) + '\t'
+                    + str(dt_tmp.hour) + '\t' + str(dt_tmp.minute) + '\t' + str(dt_tmp.second) + '\t' + str(
+                dt_tmp.microsecond)
+                    + '\t' + str(psp_pos[0][i]) + '\t' + str(psp_pos[1][i]) + '\t' + str(psp_pos[2][i]) + '\n')
+
+
+if __name__ == '__main__':
+    # %%
+    #     get_rlonlat_solo_carr(np.array([datetime(2022,2,28),datetime(2022,3,1),datetime(2022,3,2)]))
+    # %%
+    # dt_beg = datetime(2023,3,15,0)
+    # dt_end = datetime(2023,3,21,0)
+    # dt_res = timedelta(minutes=30)
+    # write_trajectory_file_for_SWMF(dt_beg,dt_end,dt_res)
+    # plot_psp_sun_carrington('20211110T000000','20211130T000000')
+    plot_psp_sun_carrington('20220216T000000', '20220312T000000')
+    # plot_psp_sun_carrington('20210801T000000','20210824T000000')
+    # quit()
+    #
+    # start_time_str = '20220217T120000'
+    # stop_time_str = '20220311T120000'
+    #
+    # start_time = datetime.strptime(start_time_str, '%Y%m%dT%H%M%S')
+    # stop_time = datetime.strptime(stop_time_str, '%Y%m%dT%H%M%S')
+    # from load_psp_data import load_RTN_4sa_data,load_RTN_1min_data
+    #
+    #
+    # timestep = timedelta(hours=1)
+    # steps = (stop_time - start_time) // timestep + 1
+    # dttimes = np.array([x * timestep + start_time for x in range(steps)])
+    # print(dttimes[0:-1:24])
+    # times = spice.datetime2et(dttimes)
+    #
+    # psp_pos_carr, _ = spice.spkpos('SPP', times, 'SPP_HG', 'NONE', 'SUN')
+    # psp_pos_carr = psp_pos_carr.T / Rs
+    # sun_pos_carr, _ = spice.spkpos('SUN', times, 'SPP_HG', 'NONE', 'SUN')
+    #
+    # psp_pos_carr_rtp = np.array([xyz2rtp_in_Carrington(psp_pos_carr[:, i]) for i in range(len(psp_pos_carr.T))])
+    # psp_pos_carr_rtp = psp_pos_carr_rtp.T
+    # print('Start Point:', psp_pos_carr_rtp[0][0], np.rad2deg(psp_pos_carr_rtp[1][0]),
+    #       np.rad2deg(psp_pos_carr_rtp[2][0]))
+    # print('End Point:', psp_pos_carr_rtp[0][-1], np.rad2deg(psp_pos_carr_rtp[1][-1]),
+    #       np.rad2deg(psp_pos_carr_rtp[2][-1]))
+    #
+    # fig = plt.figure(figsize=(9, 9))
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.plot(psp_pos_carr[0], psp_pos_carr[1], psp_pos_carr[2], c='blue')
+    # ax.scatter(0, 0, 0, c='red')
+    # ax.scatter(psp_pos_carr[0, -1], psp_pos_carr[1, -1], psp_pos_carr[2, -1], c='blue')
+    #
+    # ax.plot([0, psp_pos_carr[0][0]], [0, psp_pos_carr[1][0]], [0, psp_pos_carr[2][0]], c='yellow')
+    #
+    # start = [datetime(2022,2,17,16,45,0),datetime(2022,2,25,12,25,0),datetime(2022,3,11,6,15,0)]
+    # stop = [datetime(2022,2,17,23,30,0),datetime(2022,2,25,12,40,0),datetime(2022,3,11,12,0,0)]
+    # for i in range(3):
+    #     mag_RTN = load_RTN_1min_data(start[i].strftime('%Y%m%d'), stop[i].strftime('%Y%m%d'))
+    #
+    #     epochmag = mag_RTN['epoch_mag_RTN_1min']
+    #     timebinmag = (epochmag > start[i]) & (epochmag < stop[i])
+    #     epochmag = epochmag[timebinmag]
+    #
+    #     mag_rtn = mag_RTN['psp_fld_l2_mag_RTN_1min'][timebinmag, :]
+    #     Babs = np.sqrt(mag_rtn[:,0] ** 2 + mag_rtn[:,1] ** 2 + mag_rtn[:,2] ** 2)
+    #     etmag = spice.datetime2et(epochmag)
+    #     TM_arr = spice.sxform('SPP_RTN', 'SPP_HG', etmag)
+    #     print(TM_arr.shape)
+    #     mag_hg = np.array([np.dot(TM_arr[j,0:3, 0:3], mag_rtn[j,:]) for j in range(len(etmag))])
+    #     print(mag_hg.shape)
+    #     print(psp_pos_carr)
+    #     # for j in range(len(etmag)):
+    #     #     mag_hg = np.dot(TM_arr[j,0:3, 0:3], mag_rtn[j,:])
+    #     mag_pos_carr, _ = spice.spkpos('SPP', etmag, 'SPP_HG', 'NONE', 'SUN')
+    #     mag_pos_carr = mag_pos_carr.T / Rs
+    #     mag_pos_carr_rtp = np.array([xyz2rtp_in_Carrington(mag_pos_carr[:, i]) for i in range(len(mag_pos_carr.T))])
+    #     mag_pos_carr_rtp = mag_pos_carr_rtp.T
+    #
+    #     ax.quiver(mag_pos_carr[0][mag_rtn[:,0]>0], mag_pos_carr[1][mag_rtn[:,0]>0], mag_pos_carr[2][mag_rtn[:,0]>0],mag_hg[:,0][mag_rtn[:,0]>0]/Babs[mag_rtn[:,0]>0]*10,mag_hg[:,1][mag_rtn[:,0]>0]/Babs[mag_rtn[:,0]>0]*10,mag_hg[:,2][mag_rtn[:,0]>0]/Babs[mag_rtn[:,0]>0]*10,linewidth=0.2,color='red')
+    #     ax.quiver(mag_pos_carr[0][mag_rtn[:,0]<0], mag_pos_carr[1][mag_rtn[:,0]<0], mag_pos_carr[2][mag_rtn[:,0]<0],mag_hg[:,0][mag_rtn[:,0]<0]/Babs[mag_rtn[:,0]<0]*10,mag_hg[:,1][mag_rtn[:,0]<0]/Babs[mag_rtn[:,0]<0]*10,mag_hg[:,2][mag_rtn[:,0]<0]/Babs[mag_rtn[:,0]<0]*10,linewidth=0.2,color='blue')
+    #     # plt.colorbar()
+    #     # plt.set_clim([-1,1])
+    #     import pandas as pd
+    #     df = pd.DataFrame()
+    #     df['epoch'] = epochmag
+    #     df['pos_x'] = mag_pos_carr[0]
+    #     df['pos_y'] = mag_pos_carr[1]
+    #     df['pos_z'] = mag_pos_carr[2]
+    #     df['pos_r'] = mag_pos_carr_rtp[0]
+    #     df['pos_lon'] = np.rad2deg(mag_pos_carr_rtp[1])
+    #     df['pos_lat'] = np.rad2deg(mag_pos_carr_rtp[2])
+    #     df['mag_r'] = mag_rtn[:,0]
+    #     df['mag_t'] = mag_rtn[:,1]
+    #     df['mag_n'] = mag_rtn[:,2]
+    #     df['mag_x'] = mag_hg[:,0]
+    #     df['mag_y'] = mag_hg[:,1]
+    #     df['mag_z'] = mag_hg[:,2]
+    #     df['mag_tot'] = Babs
+    #     df.to_csv('mag'+str(i)+'.csv')
+    #
+    # ax.set_xlim([-5, -3])
+    # ax.set_ylim([12, 14])
+    # ax.set_zlim([-1, 1])
+    # plt.title('PSP orbit (' + start_time_str + '-' + stop_time_str + '), Carrington')
+    # ax.set_xlabel('x in Carrington (Rs)')
+    # ax.set_ylabel('y in Carrington (Rs)')
+    # ax.set_zlabel('z in Carrington (Rs)')
+    # plt.show()
+    # exit()
+
+    datetime_beg = datetime(2022, 3, 11, 6, 15, 0)
+    datetime_end = datetime(2022, 3, 11, 12, 0, 0)
+    # datetime_beg = datetime(2022,2,17,16,45,0)
+    # datetime_end = datetime(2022,2,17,23,30,0)
+    # datetime_beg = datetime(2022,2,25,12,25,0)
+    # datetime_end = datetime(2022,2,25,12,40,0)
+    timestep = timedelta(minutes=15)
+
+    timestr_beg = datetime_beg.strftime('%Y%m%dT%H%M%S')
+    timestr_end = datetime_end.strftime('%Y%m%dT%H%M%S')
+
     steps = (datetime_end - datetime_beg) // timestep + 1
     epoch = np.array([x * timestep + datetime_beg for x in range(steps)])
     r_footpoint_on_SourceSurface_rs, lon_footpoint_on_SourceSurface_deg, lat_footpoint_on_SourceSurface_deg, MFL_photosphere_lon_deg, MFL_photosphere_lat_deg, field_lines = psp_backmap(
-        epoch, r_source_surface_rs=2.7)
-    import pandas as pd
+        epoch, r_source_surface_rs=2.5)
 
     df = pd.DataFrame()
     df['Epoch'] = epoch
@@ -372,9 +533,6 @@ if __name__ == '__main__':
     fl_coords = []
     fl_expansions = []
     for fl in field_lines:
-        # print(fl.coords）
-        print(fl)
-
         try:
             fl_coords.append(fl.coords)
             fl_expansions.append(fl.expansion_factor)
@@ -382,10 +540,7 @@ if __name__ == '__main__':
             fl_coords.append(np.nan)
             fl_expansions.append(np.nan)
     df['Expansion_Factor'] = fl_expansions
-    df.to_csv('E8trace0429_ss27.csv')
-    np.save('save_field_lines_0429_ss27.npy', fl_coords)
-
-    # import json
-    # with open('field_lines.json','w') as save_file:
-    #     for fl in field_lines:
-    #         json.dump(fl.__dict__,save_file)
+    df.to_csv('export/plot_body_positions/pfss_trace/trace_fps_(' + timestr_beg + '-' + timestr_end + '-' + str(
+        timestep // timedelta(minutes=1)) + 'min).csv')
+    np.save('export/plot_body_positions/pfss_trace/trace_fls_(' + timestr_beg + '-' + timestr_end + '-' + str(
+        timestep // timedelta(minutes=1)) + 'min).npy', fl_coords)

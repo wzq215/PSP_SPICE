@@ -19,14 +19,16 @@ import sunpy.map
 import pfsspy
 from pfsspy import coords
 from pfsspy import tracing
+
 # 4.  读取GONG磁图
-gong_fname = 'mrzqs210116t0004c2239_023.fits' #文件名改成自己的
-gong_map = sunpy.map.Map(gong_fname)
+gong_path = '/Users/ephe/PFSS_Data/'
+gong_fname = 'mrzqs220225t0014c2254_078.fits'  # 文件名改成自己的
+gong_map = sunpy.map.Map(gong_path + gong_fname)
 # Remove the mean，这里为了使curl B = 0
 gong_map = sunpy.map.Map(gong_map.data - np.mean(gong_map.data), gong_map.meta)
 # 5. 设置网格数量和source surface高度并计算
 nrho = 30
-rss = 2.5 #单位：太阳半径
+rss = 2.5  # 单位：太阳半径
 input = pfsspy.Input(gong_map, nrho, rss)
 output = pfsspy.pfss(input)
 # 6. 画输入的GONG磁图

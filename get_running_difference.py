@@ -4,7 +4,14 @@ import sunpy.io.fits
 from matplotlib import pyplot as plt
 
 rdstep = 30
-dtnow = datetime(2021, 8, 7, 7, 8, 2)
+dtnow = datetime(2021, 4, 27, 19, 42, 20)
+# TRACK
+xx = []
+yy = []
+
+# TRACK
+
+
 # TRACK05
 # 084220
 # xx=[306,356]
@@ -33,11 +40,11 @@ dtnow = datetime(2021, 8, 7, 7, 8, 2)
 # xx=[91,113,130,147,161,182,202,223,240,256,272,290,304,326,339,355,370,390,406,422,439,455,470,481]
 # yy=[582,584,589,590,595,596,599,602,603,606,608,612,614,617,618,620,622,625,627,629,631,633,637,640]
 # 0427 trace1
-xx = [55, 102, 141, 181, 223, 260, 297, 345, 392, 440, 495, 556]
-yy = [585, 594, 600, 610, 620, 628, 635, 643, 647, 657, 668, 681]
-# 0427 trace2
-xx2 = [87, 126, 170, 214, 251, 288, 339, 390, 441, 488, 533, 593]
-yy2 = [570, 579, 584, 588, 594, 598, 607, 612, 620, 629, 642, 655]
+# xx = [55, 102, 141, 181, 223, 260, 297, 345, 392, 440, 495, 556]
+# yy = [585, 594, 600, 610, 620, 628, 635, 643, 647, 657, 668, 681]
+# # 0427 trace2
+# xx2 = [87, 126, 170, 214, 251, 288, 339, 390, 441, 488, 533, 593]
+# yy2 = [570, 579, 584, 588, 594, 598, 607, 612, 620, 629, 642, 655]
 # 0428
 # xx=[249,309,358,414,461,500]
 # yy=[615,623,634,645,653,660]
@@ -45,13 +52,13 @@ yy2 = [570, 579, 584, 588, 594, 598, 607, 612, 620, 629, 642, 655]
 # yy=[617,624,632,638,645]
 
 
-dtpre = dtnow - timedelta(minutes=rdstep, seconds=9)
+dtpre = dtnow - timedelta(minutes=rdstep, seconds=0)
 dtnow_str = dtnow.strftime('%Y%m%dT%H%M%S')
 dtpre_str = dtpre.strftime('%Y%m%dT%H%M%S')
 print('Current Time: ', dtnow_str)
 print('Previous Time: ', dtpre_str)
-data, header = sunpy.io.fits.read('data/orbit09/20210807/psp_L3_wispr_' + dtpre_str + '_V1_1211.fits')[0]
-data2, header2 = sunpy.io.fits.read('data/orbit09/20210807/psp_L3_wispr_' + dtnow_str + '_V1_1211.fits')[0]
+data, header = sunpy.io.fits.read('data/orbit08/20210427/psp_L3_wispr_' + dtpre_str + '_V1_1211.fits')[0]
+data2, header2 = sunpy.io.fits.read('data/orbit08/20210427/psp_L3_wispr_' + dtnow_str + '_V1_1211.fits')[0]
 data = data2 - data
 print(header)
 print(header['BUNIT'])
@@ -66,8 +73,8 @@ plt.colorbar()
 plt.set_cmap('gist_gray')
 # plt.clim([-4e-14, 4e-14])
 plt.clim([1e-14, 5e-13])
-plt.scatter(xx, yy, c='red', marker='x', s=20, label='Track #1b')
-plt.scatter(xx2, yy2, c='blue', marker='x', s=20, label='Track #1a')
+# plt.scatter(xx, yy, c='red', marker='x', s=20, label='Track #1b')
+# plt.scatter(xx2, yy2, c='blue', marker='x', s=20, label='Track #1a')
 # plt.ylim([300,700])
 # plt.ylim([450,700])
 # plt.xlim([50,300])
@@ -87,7 +94,7 @@ plt.set_cmap('gist_gray')
 plt.clim([-2e-14, 2e-14])
 # plt.clim([1e-14,1e-12])
 plt.scatter(xx, yy, c='red', marker='x', s=20, label='Track #1b')
-plt.scatter(xx2, yy2, c='blue', marker='x', s=20, label='Track #1a')
+# plt.scatter(xx2, yy2, c='blue', marker='x', s=20, label='Track #1a')
 
 # plt.ylim([500,700])
 # plt.ylim([450,700])
@@ -106,7 +113,7 @@ plt.set_cmap('gist_gray')
 # plt.clim([-4e-14, 4e-14])
 plt.clim([1e-14, 2e-12])
 plt.scatter(xx, yy, c='red', marker='x', s=20, label='Track #1b')
-plt.scatter(xx2, yy2, c='blue', marker='x', s=20, label='Track #1a')
+# plt.scatter(xx2, yy2, c='blue', marker='x', s=20, label='Track #1a')
 # plt.ylim([300,700])
 # plt.ylim([450,700])
 # plt.xlim([50,300])
